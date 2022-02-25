@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/cmplx"
 	"math/rand"
 
@@ -15,18 +16,28 @@ import (
 func main() {
 	rnd := rand.New(rand.NewSource(1))
 	x, y := make([]complex128, 0, 1024), make([]complex128, 0, 1024)
-	for i := 0; i < 1024; i++ {
-		x = append(x, complex(rnd.Float64()*2-1, rnd.Float64()*2-1))
-		y = append(y, complex(rnd.Float64()*2-1, rnd.Float64()*2-1))
+	x = append(x, 0)
+	y = append(y, 0)
+	factor := math.Sqrt(2)
+	for i := 1; i < 1024; i++ {
+		x = append(x, complex(rnd.Float64()*factor, rnd.Float64()*factor))
+		y = append(y, complex(rnd.Float64()*factor, rnd.Float64()*factor))
 	}
 	xx := fft.FFT(x)
 	yy := fft.FFT(y)
 
 	sumxx, sumyy := 0.0, 0.0
-	for i := 0; i < 1024; i++ {
-		sumxx += cmplx.Abs(xx[i])
-		sumyy += cmplx.Abs(yy[i])
-		fmt.Println(cmplx.Abs(xx[i]), cmplx.Abs(yy[i]))
+	lengthxx, lengthyy := 0.0, 0.0
+	lastxx, lastyy := 0.0, 0.0
+	for i := 1; i < 1024; i++ {
+		x, y := cmplx.Abs(xx[i]), cmplx.Abs(yy[i])
+		lengthxx += math.Abs(lastxx - x)
+		lengthyy += math.Abs(lastyy - y)
+		sumxx += x
+		sumyy += y
+		fmt.Println(x, y)
+		lastxx, lastyy = x, y
 	}
 	fmt.Println(sumxx, sumyy)
+	fmt.Println(lengthxx+lastxx, lengthyy+lastyy)
 }
