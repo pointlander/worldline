@@ -28,16 +28,27 @@ func main() {
 
 	sumxx, sumyy := 0.0, 0.0
 	lengthxx, lengthyy := 0.0, 0.0
-	lastxx, lastyy := 0.0, 0.0
+	length := 0.0
+	firstxx, firstyy := cmplx.Abs(xx[0]), cmplx.Abs(yy[0])
+	lastxx, lastyy := firstxx, firstyy
 	for i := 1; i < 1024; i++ {
 		x, y := cmplx.Abs(xx[i]), cmplx.Abs(yy[i])
-		lengthxx += math.Abs(lastxx - x)
-		lengthyy += math.Abs(lastyy - y)
+		diffxx := math.Abs(lastxx-x) / 1024
+		diffyy := math.Abs(lastyy-y) / 1024
+		lengthxx += diffxx
+		lengthyy += diffyy
+		length += math.Sqrt(diffxx*diffxx + diffyy*diffyy)
 		sumxx += x
 		sumyy += y
 		fmt.Println(x, y)
 		lastxx, lastyy = x, y
 	}
+	fmt.Printf("\n")
+	diffxx := math.Abs(lastxx-firstxx) / 1024
+	diffyy := math.Abs(lastyy-firstyy) / 1024
+	lengthxx += diffxx
+	lengthyy += diffyy
+	length += math.Sqrt(diffxx*diffxx + diffyy*diffyy)
 	fmt.Println(sumxx, sumyy)
-	fmt.Println(lengthxx+lastxx, lengthyy+lastyy)
+	fmt.Println(lengthxx, lengthyy, length)
 }
