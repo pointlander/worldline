@@ -7,7 +7,6 @@ package main
 import (
 	"fmt"
 	"math"
-	"math/cmplx"
 	"math/rand"
 
 	"github.com/mjibson/go-dsp/fft"
@@ -29,10 +28,10 @@ func main() {
 	sumxx, sumyy := 0.0, 0.0
 	lengthxx, lengthyy := 0.0, 0.0
 	length := 0.0
-	firstxx, firstyy := cmplx.Abs(xx[0]), cmplx.Abs(yy[0])
+	firstxx, firstyy := real(xx[0]), real(yy[0])
 	lastxx, lastyy := firstxx, firstyy
 	for i := 1; i < 1024; i++ {
-		x, y := cmplx.Abs(xx[i]), cmplx.Abs(yy[i])
+		x, y := real(xx[i]), real(yy[i])
 		diffxx := math.Abs(lastxx-x) / 1024
 		diffyy := math.Abs(lastyy-y) / 1024
 		lengthxx += diffxx
