@@ -12,42 +12,54 @@ import (
 	"github.com/mjibson/go-dsp/fft"
 )
 
+const (
+	// d is the number of dimensions
+	d = 2
+	// N is the number of points in the Worldline
+	N = 1024
+)
+
 func main() {
 	rnd := rand.New(rand.NewSource(1))
-	x, y := make([]complex128, 0, 1024), make([]complex128, 0, 1024)
-	x = append(x, 0)
-	y = append(y, 0)
-	factor := math.Sqrt(2)
-	for i := 1; i < 1024; i++ {
-		x = append(x, complex(rnd.Float64()*factor, rnd.Float64()*factor))
-		y = append(y, complex(rnd.Float64()*factor, rnd.Float64()*factor))
+	x := make([][]complex128, 0, d)
+	for i := 0; i < d; i++ {
+		x = append(x, make([]complex128, 0, N))
+		x[i] = append(x[i], 0)
 	}
-	xx := fft.FFT(x)
-	yy := fft.FFT(y)
+	factor := math.Sqrt(2)
+	for i := 0; i < d; i++ {
+		for j := 1; j < N; j++ {
+			x[i] = append(x[i], complex(rnd.Float64()*factor, rnd.Float64()*factor))
+		}
+	}
+	xfft := make([][]complex128, 0, d)
+	for i := 0; i < d; i++ {
+		xfft = append(xfft, fft.FFT(x[i]))
+	}
 
-	sumxx, sumyy := 0.0, 0.0
-	lengthxx, lengthyy := 0.0, 0.0
+	sum := make([]float64, 2)
+	manhattan := make([]float64, 2)
 	length := 0.0
-	firstxx, firstyy := real(xx[0]), real(yy[0])
-	lastxx, lastyy := firstxx, firstyy
-	for i := 1; i < 1024; i++ {
-		x, y := real(xx[i]), real(yy[i])
-		diffxx := math.Abs(lastxx-x) / 1024
-		diffyy := math.Abs(lastyy-y) / 1024
-		lengthxx += diffxx
-		lengthyy += diffyy
-		length += math.Sqrt(diffxx*diffxx + diffyy*diffyy)
-		sumxx += x
-		sumyy += y
-		fmt.Println(x, y)
-		lastxx, lastyy = x, y
+	first := []float64{real(xfft[0][0]), real(xfft[1][0])}
+	last := []float64{first[0], first[1]}
+	for i := 1; i < N; i++ {
+		var diff [2]float64
+		for j := 0; j < d; j++ {
+			diff[j] = math.Abs(last[j] - real(xfft[j][i]))
+			manhattan[j] += diff[j]
+			sum[j] += real(xfft[j][i])
+			last[j] = real(xfft[j][i])
+		}
+		length += math.Sqrt(diff[0]*diff[0] + diff[1]*diff[1])
+		fmt.Println(real(xfft[0][i]), real(xfft[1][i]))
 	}
 	fmt.Printf("\n")
-	diffxx := math.Abs(lastxx-firstxx) / 1024
-	diffyy := math.Abs(lastyy-firstyy) / 1024
-	lengthxx += diffxx
-	lengthyy += diffyy
-	length += math.Sqrt(diffxx*diffxx + diffyy*diffyy)
-	fmt.Println(sumxx, sumyy)
-	fmt.Println(lengthxx, lengthyy, length)
+	var diff [2]float64
+	for j := 0; j < d; j++ {
+		diff[j] = math.Abs(last[j] - first[j])
+		manhattan[j] += diff[j]
+	}
+	length += math.Sqrt(diff[0]*diff[0] + diff[1]*diff[1])
+	fmt.Println(sum[0], sum[1])
+	fmt.Println(manhattan[0], manhattan[1], length)
 }
