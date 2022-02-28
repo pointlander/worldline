@@ -37,29 +37,41 @@ func main() {
 		xfft = append(xfft, fft.FFT(x[i]))
 	}
 
-	sum := make([]float64, 2)
-	manhattan := make([]float64, 2)
+	sum := make([]float64, d)
+	manhattan := make([]float64, d)
 	length := 0.0
-	first := []float64{real(xfft[0][0]), real(xfft[1][0])}
-	last := []float64{first[0], first[1]}
+	first := make([]float64, d)
+	last := make([]float64, d)
+	for i := 0; i < d; i++ {
+		first[i] = real(xfft[i][0])
+		last[i] = real(xfft[i][0])
+	}
 	for i := 1; i < N; i++ {
-		var diff [2]float64
+		var diff [d]float64
 		for j := 0; j < d; j++ {
 			diff[j] = math.Abs(last[j] - real(xfft[j][i]))
 			manhattan[j] += diff[j]
 			sum[j] += real(xfft[j][i])
 			last[j] = real(xfft[j][i])
 		}
-		length += math.Sqrt(diff[0]*diff[0] + diff[1]*diff[1])
+		l := 0.0
+		for j := 0; j < d; j++ {
+			l += diff[j] * diff[j]
+		}
+		length += math.Sqrt(l)
 		fmt.Println(real(xfft[0][i]), real(xfft[1][i]))
 	}
 	fmt.Printf("\n")
-	var diff [2]float64
+	var diff [d]float64
 	for j := 0; j < d; j++ {
 		diff[j] = math.Abs(last[j] - first[j])
 		manhattan[j] += diff[j]
 	}
-	length += math.Sqrt(diff[0]*diff[0] + diff[1]*diff[1])
+	l := 0.0
+	for j := 0; j < d; j++ {
+		l += diff[j] * diff[j]
+	}
+	length += math.Sqrt(l)
 	fmt.Println(sum[0], sum[1])
 	fmt.Println(manhattan[0], manhattan[1], length)
 }
