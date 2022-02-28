@@ -46,13 +46,26 @@ func main() {
 		first[i] = real(xfft[i][0])
 		last[i] = real(xfft[i][0])
 	}
+	var min [d]float64
+	var max [d]float64
+	for i := 0; i < d; i++ {
+		min[i] = math.MaxFloat64
+		max[i] = -math.MaxFloat64
+	}
 	for i := 1; i < N; i++ {
 		var diff [d]float64
 		for j := 0; j < d; j++ {
-			diff[j] = math.Abs(last[j] - real(xfft[j][i]))
+			r := real(xfft[j][i])
+			diff[j] = math.Abs(last[j]) - r
 			manhattan[j] += diff[j]
-			sum[j] += real(xfft[j][i])
-			last[j] = real(xfft[j][i])
+			sum[j] += r
+			last[j] = r
+			if r < min[j] {
+				min[j] = r
+			}
+			if r > max[j] {
+				max[j] = r
+			}
 		}
 		l := 0.0
 		for j := 0; j < d; j++ {
@@ -74,4 +87,12 @@ func main() {
 	length += math.Sqrt(l)
 	fmt.Println(sum[0], sum[1])
 	fmt.Println(manhattan[0], manhattan[1], length)
+
+	var norm [d]float64
+	for i := 0; i < d; i++ {
+		norm[i] = math.Abs(max[i]-min[i]) / 2
+	}
+	for i := 0; i < N; i++ {
+		fmt.Println(real(xfft[0][i])/norm[0], real(xfft[1][i])/norm[1])
+	}
 }
