@@ -90,19 +90,20 @@ func main() {
 
 	var norm [d]float64
 	for i := 0; i < d; i++ {
-		norm[i] = math.Abs(max[i]-min[i]) / 2
+		norm[i] = math.Abs(max[i] - min[i])
 	}
 
 	intersections := 0
 	previous := real(xfft[0][0]) / norm[0]
 	for i := 1; i < N; i++ {
 		x := real(xfft[0][i]) / norm[0]
-		if previous < .5 && x > .5 ||
+		if previous < -.5 && x > .5 ||
+			previous > .5 && x < -.5 {
+			// empty
+		} else if previous < .5 && x > .5 ||
 			previous > .5 && x < .5 ||
 			previous < -.5 && x > -.5 ||
-			previous > -.5 && x < -.5 ||
-			previous < -.5 && x > .5 ||
-			previous > .5 && x < -.5 {
+			previous > -.5 && x < -.5 {
 			intersections++
 		}
 		previous = x
