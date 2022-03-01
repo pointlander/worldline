@@ -10,6 +10,7 @@ import (
 	"math/rand"
 
 	"github.com/mjibson/go-dsp/fft"
+	"gonum.org/v1/gonum/integrate/quad"
 )
 
 const (
@@ -19,33 +20,25 @@ const (
 	N = 1024
 )
 
-func main() {
-	rnd := rand.New(rand.NewSource(1))
-	x := make([][]complex128, 0, d)
+func W(a float64, worldline int64, x float64) float64 {
+	rnd := rand.New(rand.NewSource(worldline))
+	y := make([][]complex128, 0, d)
 	for i := 0; i < d; i++ {
-		x = append(x, make([]complex128, 0, N))
-		x[i] = append(x[i], 0)
+		y = append(y, make([]complex128, 0, N))
+		y[i] = append(y[i], 0)
 	}
 	factor := math.Sqrt(2)
 	for i := 0; i < d; i++ {
 		for j := 1; j < N; j++ {
-			x[i] = append(x[i], complex(rnd.Float64()*factor, rnd.Float64()*factor))
+			y[i] = append(y[i], complex(rnd.Float64()*factor, rnd.Float64()*factor))
 		}
 	}
-	xfft := make([][]complex128, 0, d)
+
+	yt := make([][]complex128, 0, d)
 	for i := 0; i < d; i++ {
-		xfft = append(xfft, fft.FFT(x[i]))
+		yt = append(yt, fft.FFT(y[i]))
 	}
 
-	sum := make([]float64, d)
-	manhattan := make([]float64, d)
-	length := 0.0
-	first := make([]float64, d)
-	last := make([]float64, d)
-	for i := 0; i < d; i++ {
-		first[i] = real(xfft[i][0])
-		last[i] = real(xfft[i][0])
-	}
 	var min [d]float64
 	var max [d]float64
 	for i := 0; i < d; i++ {
@@ -53,13 +46,8 @@ func main() {
 		max[i] = -math.MaxFloat64
 	}
 	for i := 1; i < N; i++ {
-		var diff [d]float64
 		for j := 0; j < d; j++ {
-			r := real(xfft[j][i])
-			diff[j] = math.Abs(last[j]) - r
-			manhattan[j] += diff[j]
-			sum[j] += r
-			last[j] = r
+			r := real(yt[j][i])
 			if r < min[j] {
 				min[j] = r
 			}
@@ -67,46 +55,36 @@ func main() {
 				max[j] = r
 			}
 		}
-		l := 0.0
-		for j := 0; j < d; j++ {
-			l += diff[j] * diff[j]
-		}
-		length += math.Sqrt(l)
-		fmt.Println(real(xfft[0][i]), real(xfft[1][i]))
 	}
-	fmt.Printf("\n")
-	var diff [d]float64
-	for j := 0; j < d; j++ {
-		diff[j] = math.Abs(last[j] - first[j])
-		manhattan[j] += diff[j]
-	}
-	l := 0.0
-	for j := 0; j < d; j++ {
-		l += diff[j] * diff[j]
-	}
-	length += math.Sqrt(l)
-	fmt.Println(sum[0], sum[1])
-	fmt.Println(manhattan[0], manhattan[1], length)
 
 	var norm [d]float64
 	for i := 0; i < d; i++ {
 		norm[i] = math.Abs(max[i] - min[i])
 	}
 
-	intersections := 0
-	previous := real(xfft[0][0]) / norm[0]
+	intersections := 0.0
+	previous := real(yt[0][0])/norm[0] + x
+	a /= 2
 	for i := 1; i < N; i++ {
-		x := real(xfft[0][i]) / norm[0]
-		if previous < -.5 && x > .5 ||
-			previous > .5 && x < -.5 {
+		x := real(yt[0][i])/norm[0] + x
+		if previous < -a && x > a ||
+			previous > a && x < -a {
 			// empty
-		} else if previous < .5 && x > .5 ||
-			previous > .5 && x < .5 ||
-			previous < -.5 && x > -.5 ||
-			previous > -.5 && x < -.5 {
+		} else if previous < a && x > a ||
+			previous > a && x < a ||
+			previous < -a && x > -a ||
+			previous > -a && x < -a {
 			intersections++
 		}
 		previous = x
 	}
-	fmt.Println(intersections)
+
+	return intersections
+}
+
+func main() {
+	w := func(x float64) float64 {
+		return math.Exp(-W(1, 1, x))
+	}
+	fmt.Println(quad.Fixed(w, 0, 1, 10000, nil, 0))
 }
