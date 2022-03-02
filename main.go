@@ -21,10 +21,14 @@ import (
 const (
 	// d is the number of dimensions
 	d = 2
+	// D is the number of space time dimensions
+	D = d + 1
 	// N is the number of points in the Worldline
 	N = 32 * 1024
 	// Loops is the number of loops
 	Loops = 100
+	// Lambda is a plate factor
+	Lambda = 1e-4
 )
 
 var (
@@ -79,7 +83,7 @@ func MakeLoops() [][][d]float64 {
 		for i := 0; i < N; i++ {
 			var point [d]float64
 			for j := 0; j < d; j++ {
-				point[j] = real(yt[j][i]) / norm[0]
+				point[j] = real(yt[j][i]) / norm[j]
 			}
 			loops[loop] = append(loops[loop], point)
 		}
@@ -90,47 +94,47 @@ func MakeLoops() [][][d]float64 {
 
 func W(a float64, loop [][d]float64, x float64) (float64, float64) {
 	intersections := 0.0
-	scale := a
 	a /= 2
-	var previous [d]float64
-	for i := 0; i < d; i++ {
-		previous[i] = scale*loop[0][0] + x
-	}
+	previous := loop[0]
 	length := 0.0
 	for i := 1; i < N; i++ {
-		var xx [2]float64
 		for j := 0; j < d; j++ {
-			xx[j] = scale*loop[i][j] + x
-		}
-		for j := 0; j < d; j++ {
-			diff := xx[j] - previous[j]
+			diff := loop[i][j] - previous[j]
 			length += diff * diff
 		}
-		if previous[0] < -a && xx[0] > a ||
-			previous[0] > a && xx[0] < -a {
+		if (previous[0]+x) < -a && (loop[i][0]+x) > a ||
+			(previous[0]+x) > a && (loop[i][0]+x) < -a {
 			intersections += 2
-		} else if previous[0] < a && xx[0] > a ||
-			previous[0] > a && xx[0] < a ||
-			previous[0] < -a && xx[0] > -a ||
-			previous[0] > -a && xx[0] < -a {
+		} else if (previous[0]+x) < a && (loop[i][0]+x) > a ||
+			(previous[0]+x) > a && (loop[i][0]+x) < a ||
+			(previous[0]+x) < -a && (loop[i][0]+x) > -a ||
+			(previous[0]+x) > -a && (loop[i][0]+x) < -a {
 			intersections++
 		}
-		previous = xx
+		previous = loop[i]
 	}
 
-	return intersections, length / 4
+	return Lambda * intersections, length / 4
 }
 
 func main() {
 	fmt.Println("making loops...")
 	loops := MakeLoops()
+
 	fmt.Println("simulating...")
+	factor := -1 / (2 * math.Pow(4*math.Pi, D/2))
+	m := 1.0
+	f := func(T float64) float64 {
+		return math.Exp(-math.Pow(m, 2)*T) / math.Pow(T, 1+D/2)
+	}
+	factor *= quad.Fixed(f, 0, math.Inf(1), 1000, nil, 0)
+
 	type Result struct {
 		Intersections float64
 		Length        float64
 	}
 	points := make(plotter.XYs, 0, 10)
-	for a := 1.0; a >= .1; a -= .1 {
+	for a := 1.0; a > 0; a -= .01 {
 		w := func(x float64) float64 {
 			done := make(chan Result, 8)
 			process := func(a float64, i int) {
@@ -161,46 +165,9 @@ func main() {
 				sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
 				denominator += math.Exp(-result.Length)
 			}
-			return x * sum / denominator
+			return x * (sum/denominator - 1)
 		}
-		e := quad.Fixed(w, -1, 1, 1000, nil, 0)
-		fmt.Println(a, e)
-		points = append(points, plotter.XY{X: a, Y: e})
-	}
-	for a := .09; a >= .01; a -= .01 {
-		w := func(x float64) float64 {
-			done := make(chan Result, 8)
-			process := func(a float64, i int) {
-				intersections, length := W(a, loops[i], x)
-				done <- Result{
-					Intersections: intersections,
-					Length:        length,
-				}
-			}
-			sum, denominator, flight, i := 0.0, 0.0, 0, 0
-			for i < Loops && flight < CPUs {
-				go process(a, i)
-				flight++
-				i++
-			}
-			for i < Loops {
-				result := <-done
-				flight--
-				sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
-				denominator += math.Exp(-result.Length)
-
-				go process(a, i)
-				flight++
-				i++
-			}
-			for i := 0; i < flight; i++ {
-				result := <-done
-				sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
-				denominator += math.Exp(-result.Length)
-			}
-			return x * sum / denominator
-		}
-		e := quad.Fixed(w, -1, 1, 1000, nil, 0)
+		e := factor * quad.Fixed(w, -1, 1, 1000, nil, 0)
 		fmt.Println(a, e)
 		points = append(points, plotter.XY{X: a, Y: e})
 	}
