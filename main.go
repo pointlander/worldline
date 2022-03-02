@@ -11,6 +11,10 @@ import (
 
 	"github.com/mjibson/go-dsp/fft"
 	"gonum.org/v1/gonum/integrate/quad"
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/vg"
+	"gonum.org/v1/plot/vg/draw"
 )
 
 const (
@@ -69,7 +73,7 @@ func W(a float64, worldline int64, x float64) float64 {
 		x := real(yt[0][i])/norm[0] + x
 		if previous < -a && x > a ||
 			previous > a && x < -a {
-			// empty
+			intersections += 2
 		} else if previous < a && x > a ||
 			previous > a && x < a ||
 			previous < -a && x > -a ||
@@ -83,8 +87,48 @@ func W(a float64, worldline int64, x float64) float64 {
 }
 
 func main() {
-	w := func(x float64) float64 {
-		return math.Exp(-W(1, 1, x))
+	points := make(plotter.XYs, 0, 10)
+	for a := 1.5; a >= .1; a -= .1 {
+		w := func(x float64) float64 {
+			sum := 0.0
+			for i := 0; i < 10; i++ {
+				sum += math.Exp(-W(a, int64(i), x))
+			}
+			return x * sum
+		}
+		e := quad.Fixed(w, -2, 2, 10000, nil, 0)
+		fmt.Println(a, e)
+		points = append(points, plotter.XY{X: a, Y: e})
 	}
-	fmt.Println(quad.Fixed(w, 0, 1, 10000, nil, 0))
+	for a := .09; a >= .01; a -= .01 {
+		w := func(x float64) float64 {
+			sum := 0.0
+			for i := 0; i < 10; i++ {
+				sum += math.Exp(-W(a, int64(i), x))
+			}
+			return x * sum
+		}
+		e := quad.Fixed(w, -2, 2, 10000, nil, 0)
+		fmt.Println(a, e)
+		points = append(points, plotter.XY{X: a, Y: e})
+	}
+
+	p := plot.New()
+
+	p.Title.Text = "a vs energy"
+	p.X.Label.Text = "a"
+	p.Y.Label.Text = "energy"
+
+	scatter, err := plotter.NewScatter(points)
+	if err != nil {
+		panic(err)
+	}
+	scatter.GlyphStyle.Radius = vg.Length(1)
+	scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+	p.Add(scatter)
+
+	err = p.Save(8*vg.Inch, 8*vg.Inch, "energy.png")
+	if err != nil {
+		panic(err)
+	}
 }
