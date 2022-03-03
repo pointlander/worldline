@@ -101,10 +101,8 @@ func W(a float64, loop [][d]float64, x float64) (float64, float64) {
 		for j := 0; j < d; j++ {
 			diff := v1[j] - v2[j]
 			length += diff * diff
-			v1[j] += x
-			v2[j] += x
 		}
-		if x1, x2 := v1[0], v2[0]; x1 < -a && x2 > a ||
+		if x1, x2 := v1[0]+x, v2[0]+x; x1 < -a && x2 > a ||
 			x1 > a && x2 < -a {
 			intersections += 2
 		} else if x1 < a && x2 > a ||
