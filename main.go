@@ -95,23 +95,24 @@ func MakeLoops() [][][d]float64 {
 func W(a float64, loop [][d]float64, x float64) (float64, float64) {
 	intersections := 0.0
 	a /= 2
-	previous := loop[0]
 	length := 0.0
-	for i := 1; i < N; i++ {
+	for i := 0; i < N+1; i++ {
+		v1, v2 := loop[(i+N-1)%N], loop[i%N]
 		for j := 0; j < d; j++ {
-			diff := loop[i][j] - previous[j]
+			diff := v1[j] - v2[j]
 			length += diff * diff
+			v1[j] += x
+			v2[j] += x
 		}
-		if (previous[0]+x) < -a && (loop[i][0]+x) > a ||
-			(previous[0]+x) > a && (loop[i][0]+x) < -a {
+		if x1, x2 := v1[0], v2[0]; x1 < -a && x2 > a ||
+			x1 > a && x2 < -a {
 			intersections += 2
-		} else if (previous[0]+x) < a && (loop[i][0]+x) > a ||
-			(previous[0]+x) > a && (loop[i][0]+x) < a ||
-			(previous[0]+x) < -a && (loop[i][0]+x) > -a ||
-			(previous[0]+x) > -a && (loop[i][0]+x) < -a {
+		} else if x1 < a && x2 > a ||
+			x1 > a && x2 < a ||
+			x1 < -a && x2 > -a ||
+			x1 > -a && x2 < -a {
 			intersections++
 		}
-		previous = loop[i]
 	}
 
 	return Lambda * intersections, length / 4
