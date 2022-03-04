@@ -27,7 +27,7 @@ const (
 	// D is the number of space time dimensions
 	D = d + 1
 	// N is the number of points in the Worldline
-	N = 32 * 1024
+	N = 256 //32 * 1024
 	// Loops is the number of loops
 	Loops = 1000
 	// Lambda is a plate factor
@@ -44,7 +44,7 @@ var (
 )
 
 // MakeLoopsGA make worldline loops using genetic algorithm
-func MakeLoopsGA() [][][d]float64 {
+func MakeLoopsGA() ([][][d]float64, [][]complex128) {
 	target := -8.9518852409623
 
 	factor := -1 / (2 * math.Pow(4*math.Pi, D/2))
@@ -192,7 +192,7 @@ func MakeLoopsGA() [][][d]float64 {
 		fmt.Println(float64(time.Now().Sub(start)) / float64(time.Second))
 	}
 
-	return getLoops(genomes[0])
+	return getLoops(genomes[0]), genomes[0].Genome
 }
 
 // MakeLoopsMulti make worldline loops
@@ -393,9 +393,9 @@ func main() {
 	flag.Parse()
 
 	if *FlagGA {
-		loops := MakeLoopsGA()
-		points := make(plotter.XYs, 0, N)
+		loops, freq := MakeLoopsGA()
 
+		points := make(plotter.XYs, 0, N)
 		for n, value := range loops[0] {
 			points = append(points, plotter.XY{X: float64(n), Y: value[0]})
 		}
@@ -418,6 +418,55 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+
+		points = make(plotter.XYs, 0, N)
+		for n, value := range freq[0] {
+			points = append(points, plotter.XY{X: float64(n), Y: real(value)})
+		}
+
+		p = plot.New()
+
+		p.Title.Text = "freq vs time"
+		p.X.Label.Text = "freq"
+		p.Y.Label.Text = "time"
+
+		scatter, err = plotter.NewScatter(points)
+		if err != nil {
+			panic(err)
+		}
+		scatter.GlyphStyle.Radius = vg.Length(1)
+		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+		p.Add(scatter)
+
+		err = p.Save(8*vg.Inch, 8*vg.Inch, "freq.png")
+		if err != nil {
+			panic(err)
+		}
+
+		points = make(plotter.XYs, 0, N)
+		for _, value := range freq[0] {
+			points = append(points, plotter.XY{X: real(value), Y: imag(value)})
+		}
+
+		p = plot.New()
+
+		p.Title.Text = "real vs imag"
+		p.X.Label.Text = "real"
+		p.Y.Label.Text = "image"
+
+		scatter, err = plotter.NewScatter(points)
+		if err != nil {
+			panic(err)
+		}
+		scatter.GlyphStyle.Radius = vg.Length(1)
+		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+		p.Add(scatter)
+
+		err = p.Save(8*vg.Inch, 8*vg.Inch, "complex.png")
+		if err != nil {
+			panic(err)
+		}
+
 		return
 	}
 
