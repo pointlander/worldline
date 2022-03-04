@@ -26,7 +26,7 @@ const (
 	// N is the number of points in the Worldline
 	N = 32 * 1024
 	// Loops is the number of loops
-	Loops = 500
+	Loops = 1000
 	// Lambda is a plate factor
 	Lambda = 1e-4
 )
@@ -35,6 +35,75 @@ var (
 	// CPUs is the number of CPUs
 	CPUs = runtime.NumCPU()
 )
+
+// MakeLoopsMulti make worldline loops
+func MakeLoopsMulti() [][][d]float64 {
+	loops := make([][][d]float64, Loops)
+	rnd := rand.New(rand.NewSource(int64(1)))
+	y := make([][][]complex128, 0, d)
+	for i := 0; i < d; i++ {
+		y = append(y, make([][]complex128, 0, Loops))
+		for j := 0; j < Loops; j++ {
+			y[i] = append(y[i], make([]complex128, 0, N))
+		}
+	}
+	factor := math.Sqrt(2)
+	for i := 0; i < d; i++ {
+		for j := 0; j < Loops; j++ {
+			for k := 0; k < N; k++ {
+				if j == 0 && k == 0 {
+					y[i][j] = append(y[i][j], 0)
+					continue
+				}
+				y[i][j] = append(y[i][j], complex(rnd.Float64()*factor, rnd.Float64()*factor))
+			}
+		}
+	}
+
+	yt := make([][][]complex128, 0, d)
+	for i := 0; i < d; i++ {
+		yt = append(yt, fft.FFT2(y[i]))
+	}
+
+	min := make([][d]float64, Loops)
+	max := make([][d]float64, Loops)
+	for loop := 0; loop < Loops; loop++ {
+		for i := 0; i < d; i++ {
+			min[loop][i] = math.MaxFloat64
+			max[loop][i] = -math.MaxFloat64
+		}
+		for i := 0; i < N; i++ {
+			for j := 0; j < d; j++ {
+				r := real(yt[j][loop][i])
+				if r < min[loop][j] {
+					min[loop][j] = r
+				}
+				if r > max[loop][j] {
+					max[loop][j] = r
+				}
+			}
+		}
+	}
+
+	norm := make([][d]float64, Loops)
+	for loop := 0; loop < Loops; loop++ {
+		for i := 0; i < d; i++ {
+			norm[loop][i] = math.Abs(max[loop][i] - min[loop][i])
+		}
+	}
+
+	for loop := 0; loop < Loops; loop++ {
+		for i := 0; i < N; i++ {
+			var point [d]float64
+			for j := 0; j < d; j++ {
+				point[j] = real(yt[j][loop][i]) / norm[loop][j]
+			}
+			loops[loop] = append(loops[loop], point)
+		}
+	}
+
+	return loops
+}
 
 // MakeLoops make worldline loops
 func MakeLoops() [][][d]float64 {
@@ -163,7 +232,7 @@ func V(loops [][][d]float64, a float64) float64 {
 
 func main() {
 	fmt.Println("making loops...")
-	loops := MakeLoops()
+	loops := MakeLoopsMulti()
 
 	fmt.Println("simulating...")
 	factor := -1 / (2 * math.Pow(4*math.Pi, D/2))
