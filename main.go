@@ -26,7 +26,7 @@ const (
 	// N is the number of points in the Worldline
 	N = 32 * 1024
 	// Loops is the number of loops
-	Loops = 100
+	Loops = 500
 	// Lambda is a plate factor
 	Lambda = 1e-4
 )
@@ -36,6 +36,7 @@ var (
 	CPUs = runtime.NumCPU()
 )
 
+// MakeLoops make worldline loops
 func MakeLoops() [][][d]float64 {
 	loops := make([][][d]float64, Loops)
 	for loop := 0; loop < Loops; loop++ {
@@ -92,6 +93,7 @@ func MakeLoops() [][][d]float64 {
 	return loops
 }
 
+// W integrate over wilson loops
 func W(a float64, loop [][d]float64, x float64) (float64, float64) {
 	intersections := 0.0
 	a /= 2
@@ -116,6 +118,49 @@ func W(a float64, loop [][d]float64, x float64) (float64, float64) {
 	return Lambda * intersections, length / 4
 }
 
+// Result is a wilson loop integration
+type Result struct {
+	Intersections float64
+	Length        float64
+}
+
+// V compute energy for plate separation a
+func V(loops [][][d]float64, a float64) float64 {
+	w := func(x float64) float64 {
+		done := make(chan Result, 8)
+		process := func(a float64, i int) {
+			intersections, length := W(a, loops[i], x)
+			done <- Result{
+				Intersections: intersections,
+				Length:        length,
+			}
+		}
+		sum, denominator, flight, i := 0.0, 0.0, 0, 0
+		for i < Loops && flight < CPUs {
+			go process(a, i)
+			flight++
+			i++
+		}
+		for i < Loops {
+			result := <-done
+			flight--
+			sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
+			denominator += math.Exp(-result.Length)
+
+			go process(a, i)
+			flight++
+			i++
+		}
+		for i := 0; i < flight; i++ {
+			result := <-done
+			sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
+			denominator += math.Exp(-result.Length)
+		}
+		return x * (sum/denominator - 1)
+	}
+	return quad.Fixed(w, -1, 1, 1000, nil, 0)
+}
+
 func main() {
 	fmt.Println("making loops...")
 	loops := MakeLoops()
@@ -128,45 +173,9 @@ func main() {
 	}
 	factor *= quad.Fixed(f, 0, math.Inf(1), 1000, nil, 0)
 
-	type Result struct {
-		Intersections float64
-		Length        float64
-	}
 	points := make(plotter.XYs, 0, 10)
 	for a := 1.0; a > 0; a -= .01 {
-		w := func(x float64) float64 {
-			done := make(chan Result, 8)
-			process := func(a float64, i int) {
-				intersections, length := W(a, loops[i], x)
-				done <- Result{
-					Intersections: intersections,
-					Length:        length,
-				}
-			}
-			sum, denominator, flight, i := 0.0, 0.0, 0, 0
-			for i < Loops && flight < CPUs {
-				go process(a, i)
-				flight++
-				i++
-			}
-			for i < Loops {
-				result := <-done
-				flight--
-				sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
-				denominator += math.Exp(-result.Length)
-
-				go process(a, i)
-				flight++
-				i++
-			}
-			for i := 0; i < flight; i++ {
-				result := <-done
-				sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
-				denominator += math.Exp(-result.Length)
-			}
-			return x * (sum/denominator - 1)
-		}
-		e := factor * quad.Fixed(w, -1, 1, 1000, nil, 0)
+		e := factor * V(loops, a)
 		fmt.Println(a, e)
 		points = append(points, plotter.XY{X: a, Y: e})
 	}
