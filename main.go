@@ -28,9 +28,9 @@ const (
 	// D is the number of space time dimensions
 	D = d + 1
 	// N is the number of points in the Worldline
-	N = 1024 //32 * 1024
+	N = 32 * 1024
 	// Loops is the number of loops
-	Loops = 1000
+	Loops = 1024
 	// Lambda is a plate factor
 	Lambda = 1e-4
 	// Genomes is the number of genomes
@@ -42,6 +42,8 @@ var (
 	CPUs = runtime.NumCPU()
 	// FlagGA is the genetic optimization mode
 	FlagGA = flag.Bool("ga", false, "ga mode")
+	// FlagGraph generate graphs
+	FlagGraph = flag.Bool("graph", false, "generate graphs")
 )
 
 // MakeLoopsZeta makes a loop using the zeta function
@@ -299,6 +301,9 @@ func MakeLoopsMulti() [][][d]float64 {
 			max[loop][i] = -math.MaxFloat64
 		}
 		for i := 0; i < N; i++ {
+			if loop == 0 && i == 0 {
+				continue
+			}
 			for j := 0; j < d; j++ {
 				r := real(yt[j][loop][i])
 				if r < min[loop][j] {
@@ -322,9 +327,40 @@ func MakeLoopsMulti() [][][d]float64 {
 		for i := 0; i < N; i++ {
 			var point [d]float64
 			for j := 0; j < d; j++ {
+				if loop == 0 && i == 0 {
+					yt[j][loop][i] = 0
+				}
 				point[j] = real(yt[j][loop][i]) / norm[loop][j]
 			}
 			loops[loop] = append(loops[loop], point)
+		}
+	}
+
+	if *FlagGraph {
+		for loop := 0; loop < Loops; loop++ {
+			points := make(plotter.XYs, 0, N)
+			for i := 0; i < N; i++ {
+				points = append(points, plotter.XY{X: loops[loop][i][0], Y: loops[loop][i][1]})
+			}
+
+			p := plot.New()
+
+			p.Title.Text = "x vs y"
+			p.X.Label.Text = "x"
+			p.Y.Label.Text = "y"
+
+			scatter, err := plotter.NewScatter(points)
+			if err != nil {
+				panic(err)
+			}
+			scatter.GlyphStyle.Radius = vg.Length(1)
+			scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+			p.Add(scatter)
+
+			err = p.Save(8*vg.Inch, 8*vg.Inch, fmt.Sprintf("fft_%d.png", loop))
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 
@@ -538,29 +574,8 @@ func main() {
 	}
 
 	fmt.Println("making loops...")
-	//1 -8.9518852409623
-	//0.99 -9.114023820556616
-	//0.98 -9.308114772695381
-	//0.97 -9.501679651151392
-	//0.96 -9.718836552557649
-	//0.95 -9.866166622243785
-	//0.94 -10.01675833974976
-	//0.9299999999999999 -10.208446876659796
-	//0.9199999999999999 -10.365394823070174
-	//0.9099999999999999 -9.996889541485416
-	//loops := MakeLoopsMulti()
-
-	//1 -8.9518852409623
-	//0.99 -9.146705234267
-	//0.98 -9.308114772695465
-	//0.97 -9.501679651151523
-	//0.96 -9.694687920329468
-	//0.95 -9.824431937940782
-	//0.94 -10.016758339750025
-	//0.9299999999999999 -10.208446876660108
-	//0.9199999999999999 -10.399467309075687
-	//0.9099999999999999 -10.589789502797435
-	loops := MakeLoopsZeta()
+	loops := MakeLoopsMulti()
+	//loops := MakeLoopsZeta()
 
 	fmt.Println("simulating...")
 	factor := -1 / (2 * math.Pow(4*math.Pi, D/2))
