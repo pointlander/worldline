@@ -15,6 +15,7 @@ import (
 
 	"github.com/mjibson/go-dsp/fft"
 	"gonum.org/v1/gonum/integrate/quad"
+	"gonum.org/v1/gonum/mathext"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/vg"
@@ -42,6 +43,51 @@ var (
 	// FlagGA is the genetic optimization mode
 	FlagGA = flag.Bool("ga", false, "ga mode")
 )
+
+// MakeLoopsZeta makes a loop using the zeta function
+func MakeLoopsZeta() [][][d]float64 {
+	loops := make([][][d]float64, 1)
+	x := 2
+	for i := 0; i < N; i++ {
+		var point [d]float64
+		for j := 0; j < d; j++ {
+			point[j] = mathext.Zeta(float64(x), float64(x))
+			x++
+		}
+		loops[0] = append(loops[0], point)
+	}
+
+	var min [d]float64
+	var max [d]float64
+	for i := 0; i < d; i++ {
+		min[i] = math.MaxFloat64
+		max[i] = -math.MaxFloat64
+	}
+	for i := 0; i < N; i++ {
+		for j := 0; j < d; j++ {
+			r := loops[0][i][j]
+			if r < min[j] {
+				min[j] = r
+			}
+			if r > max[j] {
+				max[j] = r
+			}
+		}
+	}
+
+	var norm [d]float64
+	for i := 0; i < d; i++ {
+		norm[i] = math.Abs(max[i] - min[i])
+	}
+
+	for i := 0; i < N; i++ {
+		for j := 0; j < d; j++ {
+			loops[0][i][j] /= norm[j]
+		}
+	}
+
+	return loops
+}
 
 // MakeLoopsGA make worldline loops using genetic algorithm
 func MakeLoopsGA() ([][][d]float64, [][]complex128) {
@@ -471,7 +517,10 @@ func main() {
 	}
 
 	fmt.Println("making loops...")
-	loops := MakeLoopsMulti()
+	//1 -8.9518852409623
+	//loops := MakeLoopsMulti()
+	//1 -8.9518852409623
+	loops := MakeLoopsZeta()
 
 	fmt.Println("simulating...")
 	factor := -1 / (2 * math.Pow(4*math.Pi, D/2))
