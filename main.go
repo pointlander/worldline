@@ -47,12 +47,12 @@ var (
 // MakeLoopsZeta makes a loop using the zeta function
 func MakeLoopsZeta() [][][d]float64 {
 	loops := make([][][d]float64, 1)
-	x := 2
+	x := 2.0
 	for i := 0; i < N; i++ {
 		var point [d]float64
 		for j := 0; j < d; j++ {
 			point[j] = mathext.Zeta(float64(x), float64(x))
-			x++
+			x += .01
 		}
 		loops[0] = append(loops[0], point)
 	}
@@ -80,10 +80,31 @@ func MakeLoopsZeta() [][][d]float64 {
 		norm[i] = math.Abs(max[i] - min[i])
 	}
 
+	points := make(plotter.XYs, 0, N)
 	for i := 0; i < N; i++ {
 		for j := 0; j < d; j++ {
 			loops[0][i][j] /= norm[j]
 		}
+		points = append(points, plotter.XY{X: loops[0][i][0], Y: loops[0][i][1]})
+	}
+
+	p := plot.New()
+
+	p.Title.Text = "x vs y"
+	p.X.Label.Text = "x"
+	p.Y.Label.Text = "y"
+
+	scatter, err := plotter.NewScatter(points)
+	if err != nil {
+		panic(err)
+	}
+	scatter.GlyphStyle.Radius = vg.Length(1)
+	scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+	p.Add(scatter)
+
+	err = p.Save(8*vg.Inch, 8*vg.Inch, "zeta.png")
+	if err != nil {
+		panic(err)
 	}
 
 	return loops
