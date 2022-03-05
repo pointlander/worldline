@@ -52,8 +52,8 @@ func MakeLoopsZeta() [][][d]float64 {
 		var point [d]float64
 		for j := 0; j < d; j++ {
 			point[j] = mathext.Zeta(float64(x), float64(x))
-			x += .01
 		}
+		x += .01
 		loops[0] = append(loops[0], point)
 	}
 
