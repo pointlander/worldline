@@ -28,11 +28,11 @@ const (
 	// D is the number of space time dimensions
 	D = d + 1
 	// N is the number of points in the Worldline
-	N = 32 * 1024
+	N = 1024
 	// Loops is the number of loops
 	Loops = 1024
 	// Lambda is a plate factor
-	Lambda = 1e-4
+	Lambda = 1e-3
 	// Genomes is the number of genomes
 	Genomes = 1024
 )
@@ -487,7 +487,7 @@ func V(loops [][][d]float64, a float64) float64 {
 			sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
 			denominator += math.Exp(-result.Length)
 		}
-		return x * (sum/denominator - 1)
+		return (sum/denominator - 1)
 	}
 	return quad.Fixed(w, -1, 1, 1000, nil, 0)
 }
