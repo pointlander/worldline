@@ -28,7 +28,7 @@ const (
 	// D is the number of space time dimensions
 	D = d + 1
 	// N is the number of points in the Worldline
-	N = 1024
+	N = 32 * 1024
 	// Loops is the number of loops
 	Loops = 1024
 	// Lambda is a plate factor
@@ -207,7 +207,7 @@ func MakeLoopsGA() ([][][d]float64, [][]complex128) {
 	fitness := func(i int) {
 		loops := getLoops(genomes[i])
 
-		diff := factor*V(loops, 1) - target
+		diff := factor*V(loops, 1, 1) - target
 		genomes[i].Fitness = diff * diff
 
 		done <- true
@@ -425,17 +425,18 @@ func MakeLoops() [][][d]float64 {
 }
 
 // W integrate over wilson loops
-func W(a float64, loop [][d]float64, x float64) (float64, float64) {
+func W(a, T float64, loop [][d]float64, x float64) (float64, float64) {
 	intersections := 0.0
 	a /= 2
 	length := 0.0
+	t := math.Sqrt(T)
 	for i := 0; i < N+1; i++ {
 		v1, v2 := loop[(i+N-1)%N], loop[i%N]
 		for j := 0; j < d; j++ {
 			diff := v1[j] - v2[j]
 			length += diff * diff
 		}
-		if x1, x2 := v1[0]+x, v2[0]+x; x1 < -a && x2 > a ||
+		if x1, x2 := x+t*v1[0], x+t*v2[0]; x1 < -a && x2 > a ||
 			x1 > a && x2 < -a {
 			intersections += 2
 		} else if x1 < a && x2 > a ||
@@ -446,7 +447,7 @@ func W(a float64, loop [][d]float64, x float64) (float64, float64) {
 		}
 	}
 
-	return Lambda * intersections, length / 4
+	return Lambda * T * intersections, length / 4
 }
 
 // Result is a wilson loop integration
@@ -456,11 +457,11 @@ type Result struct {
 }
 
 // V compute energy for plate separation a
-func V(loops [][][d]float64, a float64) float64 {
+func V(loops [][][d]float64, a, T float64) float64 {
 	w := func(x float64) float64 {
 		done := make(chan Result, 8)
-		process := func(a float64, i int) {
-			intersections, length := W(a, loops[i], x)
+		process := func(a, T float64, i int) {
+			intersections, length := W(a, T, loops[i], x)
 			done <- Result{
 				Intersections: intersections,
 				Length:        length,
@@ -468,7 +469,7 @@ func V(loops [][][d]float64, a float64) float64 {
 		}
 		sum, denominator, flight, i := 0.0, 0.0, 0, 0
 		for i < len(loops) && flight < CPUs {
-			go process(a, i)
+			go process(a, T, i)
 			flight++
 			i++
 		}
@@ -478,7 +479,7 @@ func V(loops [][][d]float64, a float64) float64 {
 			sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
 			denominator += math.Exp(-result.Length)
 
-			go process(a, i)
+			go process(a, T, i)
 			flight++
 			i++
 		}
@@ -573,21 +574,24 @@ func main() {
 		return
 	}
 
+	fmt.Println(CPUs)
+
 	fmt.Println("making loops...")
-	loops := MakeLoopsMulti()
+	loops := MakeLoops()
+	//loops := MakeLoopsMulti()
 	//loops := MakeLoopsZeta()
 
 	fmt.Println("simulating...")
 	factor := -1 / (2 * math.Pow(4*math.Pi, D/2))
-	m := 1.0
-	f := func(T float64) float64 {
-		return math.Exp(-math.Pow(m, 2)*T) / math.Pow(T, 1+D/2)
-	}
-	factor *= quad.Fixed(f, 0, math.Inf(1), 1000, nil, 0)
+	m := Lambda / 100
 
 	points := make(plotter.XYs, 0, 10)
-	for a := 1.0; a > 0; a -= .01 {
-		e := factor * V(loops, a)
+	for i := 100; i > 0; i-- {
+		a := .01 * float64(i)
+		f := func(T float64) float64 {
+			return math.Exp(-math.Pow(m, 2)*T) / math.Pow(T, 1+D/2) * V(loops, a, T)
+		}
+		e := factor * quad.Fixed(f, 1/math.Pow(1e15, 2), math.Inf(1), 200, nil, 0)
 		fmt.Println(a, e)
 		points = append(points, plotter.XY{X: a, Y: e})
 	}
