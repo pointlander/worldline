@@ -28,7 +28,7 @@ const (
 	// D is the number of space time dimensions
 	D = d + 1
 	// N is the number of points in the Worldline
-	N = 32 * 1024
+	N = 1024
 	// Loops is the number of loops
 	Loops = 1024
 	// Lambda is a plate factor
@@ -436,13 +436,13 @@ func W(a, T float64, loop [][d]float64, x float64) (float64, float64) {
 			diff := v1[j] - v2[j]
 			length += diff * diff
 		}
-		if x1, x2 := x+t*v1[0], x+t*v2[0]; x1 < -a && x2 > a ||
-			x1 > a && x2 < -a {
+		if x1, x2 := x+t*v1[0], x+t*v2[0]; (x1 < -a && x2 > a) ||
+			(x1 > a && x2 < -a) {
 			intersections += 2
-		} else if x1 < a && x2 > a ||
-			x1 > a && x2 < a ||
-			x1 < -a && x2 > -a ||
-			x1 > -a && x2 < -a {
+		} else if (x1 < a && x2 > a) ||
+			(x1 > a && x2 < a) ||
+			(x1 < -a && x2 > -a) ||
+			(x1 > -a && x2 < -a) {
 			intersections++
 		}
 	}
@@ -467,13 +467,13 @@ func V(loops [][][d]float64, a, T float64) float64 {
 				Length:        length,
 			}
 		}
-		sum, denominator, flight, i := 0.0, 0.0, 0, 0
-		for i < len(loops) && flight < CPUs {
+		length, sum, denominator, flight, i := len(loops), 0.0, 0.0, 0, 0
+		for i < length && flight < CPUs {
 			go process(a, T, i)
 			flight++
 			i++
 		}
-		for i < len(loops) {
+		for i < length {
 			result := <-done
 			flight--
 			sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
