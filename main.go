@@ -32,7 +32,7 @@ const (
 	// Loops is the number of loops
 	Loops = 1024
 	// Lambda is a plate factor
-	Lambda = 1e-3
+	Lambda = 1.0
 	// Genomes is the number of genomes
 	Genomes = 1024
 )
@@ -586,8 +586,8 @@ func main() {
 	m := Lambda / 100
 
 	points := make(plotter.XYs, 0, 10)
-	for i := 100; i > 0; i-- {
-		a := .01 * float64(i)
+	for i := 1; i < 100; i++ {
+		a := float64(i)
 		f := func(T float64) float64 {
 			return math.Exp(-math.Pow(m, 2)*T) / math.Pow(T, 1+D/2) * V(loops, a, T)
 		}
