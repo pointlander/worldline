@@ -490,7 +490,7 @@ func V(loops [][][d]float64, a, T float64) float64 {
 		}
 		return (sum/denominator - 1)
 	}
-	return quad.Fixed(w, -1, 1, 1000, nil, 0)
+	return quad.Fixed(w, -a, a, 1000, nil, 0)
 }
 
 func main() {
