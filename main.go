@@ -52,6 +52,19 @@ type Worldline struct {
 	Length float64
 }
 
+// ComputeLength computes the squared length
+func (w *Worldline) ComputeLength() {
+	length := 0.0
+	for i := 0; i < N+1; i++ {
+		v1, v2 := w.Line[(i+N-1)%N], w.Line[i%N]
+		for j := 0; j < d; j++ {
+			diff := v1[j] - v2[j]
+			length += diff * diff
+		}
+	}
+	w.Length = math.Exp(-length / 4)
+}
+
 // MakeLoopsZeta makes a loop using the zeta function
 func MakeLoopsZeta() []Worldline {
 	loops := make([]Worldline, 1)
@@ -205,6 +218,8 @@ func MakeLoopsGA() ([]Worldline, [][]complex128) {
 			}
 			loops[0].Line = append(loops[0].Line, point)
 		}
+
+		loops[0].ComputeLength()
 
 		return loops
 	}
@@ -431,17 +446,12 @@ func MakeLoops() []Worldline {
 }
 
 // W integrate over wilson loops
-func W(a, T float64, loop Worldline, x float64) (float64, float64) {
+func W(a, T float64, loop Worldline, x float64) float64 {
 	intersections := 0.0
 	a /= 2
-	length := 0.0
 	t := math.Sqrt(T)
 	for i := 0; i < N+1; i++ {
 		v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
-		for j := 0; j < d; j++ {
-			diff := v1[j] - v2[j]
-			length += diff * diff
-		}
 		if x1, x2 := x+t*v1[0], x+t*v2[0]; (x1 < -a && x2 > a) ||
 			(x1 > a && x2 < -a) {
 			intersections += 2
@@ -453,7 +463,7 @@ func W(a, T float64, loop Worldline, x float64) (float64, float64) {
 		}
 	}
 
-	return Lambda * T * intersections, length / 4
+	return Lambda * T * intersections
 }
 
 // Result is a wilson loop integration
@@ -467,10 +477,10 @@ func V(loops []Worldline, a, T float64) float64 {
 	w := func(x float64) float64 {
 		done := make(chan Result, 8)
 		process := func(a, T float64, i int) {
-			intersections, length := W(a, T, loops[i], x)
+			intersections := W(a, T, loops[i], x)
 			done <- Result{
 				Intersections: intersections,
-				Length:        length,
+				Length:        loops[i].Length,
 			}
 		}
 		length, sum, denominator, flight, i := len(loops), 0.0, 0.0, 0, 0
@@ -482,8 +492,8 @@ func V(loops []Worldline, a, T float64) float64 {
 		for i < length {
 			result := <-done
 			flight--
-			sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
-			denominator += math.Exp(-result.Length)
+			sum += math.Exp(-result.Intersections) * result.Length
+			denominator += result.Length
 
 			go process(a, T, i)
 			flight++
@@ -491,8 +501,8 @@ func V(loops []Worldline, a, T float64) float64 {
 		}
 		for i := 0; i < flight; i++ {
 			result := <-done
-			sum += math.Exp(-result.Intersections) * math.Exp(-result.Length)
-			denominator += math.Exp(-result.Length)
+			sum += math.Exp(-result.Intersections) * result.Length
+			denominator += result.Length
 		}
 		return (sum/denominator - 1)
 	}
@@ -586,6 +596,10 @@ func main() {
 	//loops := MakeLoops()
 	loops := MakeLoopsMulti()
 	//loops := MakeLoopsZeta()
+
+	for i := range loops {
+		loops[i].ComputeLength()
+	}
 
 	fmt.Println("simulating...")
 	factor := -1 / (2 * math.Pow(4*math.Pi, D/2))
