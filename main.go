@@ -46,9 +46,15 @@ var (
 	FlagGraph = flag.Bool("graph", false, "generate graphs")
 )
 
+// Worldline is a worldline
+type Worldline struct {
+	Line   [][d]float64
+	Length float64
+}
+
 // MakeLoopsZeta makes a loop using the zeta function
-func MakeLoopsZeta() [][][d]float64 {
-	loops := make([][][d]float64, 1)
+func MakeLoopsZeta() []Worldline {
+	loops := make([]Worldline, 1)
 	x := 2.0
 	for i := 0; i < N; i++ {
 		var point [d]float64
@@ -56,7 +62,7 @@ func MakeLoopsZeta() [][][d]float64 {
 			point[j] = mathext.Zeta(float64(x), float64(x))
 		}
 		x += .01
-		loops[0] = append(loops[0], point)
+		loops[0].Line = append(loops[0].Line, point)
 	}
 
 	var min [d]float64
@@ -67,7 +73,7 @@ func MakeLoopsZeta() [][][d]float64 {
 	}
 	for i := 0; i < N; i++ {
 		for j := 0; j < d; j++ {
-			r := loops[0][i][j]
+			r := loops[0].Line[i][j]
 			if r < min[j] {
 				min[j] = r
 			}
@@ -85,9 +91,9 @@ func MakeLoopsZeta() [][][d]float64 {
 	points := make(plotter.XYs, 0, N)
 	for i := 0; i < N; i++ {
 		for j := 0; j < d; j++ {
-			loops[0][i][j] /= norm[j]
+			loops[0].Line[i][j] /= norm[j]
 		}
-		points = append(points, plotter.XY{X: loops[0][i][0], Y: loops[0][i][1]})
+		points = append(points, plotter.XY{X: loops[0].Line[i][0], Y: loops[0].Line[i][1]})
 	}
 
 	p := plot.New()
@@ -113,7 +119,7 @@ func MakeLoopsZeta() [][][d]float64 {
 }
 
 // MakeLoopsGA make worldline loops using genetic algorithm
-func MakeLoopsGA() ([][][d]float64, [][]complex128) {
+func MakeLoopsGA() ([]Worldline, [][]complex128) {
 	target := -8.9518852409623
 
 	factor := -1 / (2 * math.Pow(4*math.Pi, D/2))
@@ -160,8 +166,8 @@ func MakeLoopsGA() ([][][d]float64, [][]complex128) {
 		return cp
 	}
 
-	getLoops := func(genome Genome) [][][d]float64 {
-		loops := make([][][d]float64, 1)
+	getLoops := func(genome Genome) []Worldline {
+		loops := make([]Worldline, 1)
 
 		yt := make([][]complex128, 0, d)
 		for i := 0; i < d; i++ {
@@ -197,7 +203,7 @@ func MakeLoopsGA() ([][][d]float64, [][]complex128) {
 			for j := 0; j < d; j++ {
 				point[j] = real(yt[j][i]) / norm[j]
 			}
-			loops[0] = append(loops[0], point)
+			loops[0].Line = append(loops[0].Line, point)
 		}
 
 		return loops
@@ -265,8 +271,8 @@ func MakeLoopsGA() ([][][d]float64, [][]complex128) {
 }
 
 // MakeLoopsMulti make worldline loops
-func MakeLoopsMulti() [][][d]float64 {
-	loops := make([][][d]float64, Loops)
+func MakeLoopsMulti() []Worldline {
+	loops := make([]Worldline, Loops)
 	rnd := rand.New(rand.NewSource(int64(1)))
 	y := make([][][]complex128, 0, d)
 	for i := 0; i < d; i++ {
@@ -332,7 +338,7 @@ func MakeLoopsMulti() [][][d]float64 {
 				}
 				point[j] = real(yt[j][loop][i]) / norm[loop][j]
 			}
-			loops[loop] = append(loops[loop], point)
+			loops[loop].Line = append(loops[loop].Line, point)
 		}
 	}
 
@@ -340,7 +346,7 @@ func MakeLoopsMulti() [][][d]float64 {
 		for loop := 0; loop < Loops; loop++ {
 			points := make(plotter.XYs, 0, N)
 			for i := 0; i < N; i++ {
-				points = append(points, plotter.XY{X: loops[loop][i][0], Y: loops[loop][i][1]})
+				points = append(points, plotter.XY{X: loops[loop].Line[i][0], Y: loops[loop].Line[i][1]})
 			}
 
 			p := plot.New()
@@ -368,8 +374,8 @@ func MakeLoopsMulti() [][][d]float64 {
 }
 
 // MakeLoops make worldline loops
-func MakeLoops() [][][d]float64 {
-	loops := make([][][d]float64, Loops)
+func MakeLoops() []Worldline {
+	loops := make([]Worldline, Loops)
 	for loop := 0; loop < Loops; loop++ {
 		rnd := rand.New(rand.NewSource(int64(loop + 1)))
 		y := make([][]complex128, 0, d)
@@ -417,7 +423,7 @@ func MakeLoops() [][][d]float64 {
 			for j := 0; j < d; j++ {
 				point[j] = real(yt[j][i]) / norm[j]
 			}
-			loops[loop] = append(loops[loop], point)
+			loops[loop].Line = append(loops[loop].Line, point)
 		}
 	}
 
@@ -425,13 +431,13 @@ func MakeLoops() [][][d]float64 {
 }
 
 // W integrate over wilson loops
-func W(a, T float64, loop [][d]float64, x float64) (float64, float64) {
+func W(a, T float64, loop Worldline, x float64) (float64, float64) {
 	intersections := 0.0
 	a /= 2
 	length := 0.0
 	t := math.Sqrt(T)
 	for i := 0; i < N+1; i++ {
-		v1, v2 := loop[(i+N-1)%N], loop[i%N]
+		v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
 		for j := 0; j < d; j++ {
 			diff := v1[j] - v2[j]
 			length += diff * diff
@@ -457,7 +463,7 @@ type Result struct {
 }
 
 // V compute energy for plate separation a
-func V(loops [][][d]float64, a, T float64) float64 {
+func V(loops []Worldline, a, T float64) float64 {
 	w := func(x float64) float64 {
 		done := make(chan Result, 8)
 		process := func(a, T float64, i int) {
@@ -500,7 +506,7 @@ func main() {
 		loops, freq := MakeLoopsGA()
 
 		points := make(plotter.XYs, 0, N)
-		for n, value := range loops[0] {
+		for n, value := range loops[0].Line {
 			points = append(points, plotter.XY{X: float64(n), Y: value[0]})
 		}
 
@@ -577,8 +583,8 @@ func main() {
 	fmt.Println(CPUs)
 
 	fmt.Println("making loops...")
-	loops := MakeLoops()
-	//loops := MakeLoopsMulti()
+	//loops := MakeLoops()
+	loops := MakeLoopsMulti()
 	//loops := MakeLoopsZeta()
 
 	fmt.Println("simulating...")
