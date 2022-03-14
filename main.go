@@ -27,10 +27,6 @@ const (
 	d = 2
 	// D is the number of space time dimensions
 	D = d + 1
-	// N is the number of points in the Worldline
-	N = 1024
-	// Loops is the number of loops
-	Loops = 1024
 	// Lambda is a plate factor
 	Lambda = 1.0
 	// Genomes is the number of genomes
@@ -54,7 +50,7 @@ type Worldline struct {
 
 // ComputeLength computes the squared length
 func (w *Worldline) ComputeLength() {
-	length := 0.0
+	N, length := len(w.Line), 0.0
 	for i := 0; i < N+1; i++ {
 		v1, v2 := w.Line[(i+N-1)%N], w.Line[i%N]
 		for j := 0; j < d; j++ {
@@ -66,7 +62,7 @@ func (w *Worldline) ComputeLength() {
 }
 
 // MakeLoopsZeta makes a loop using the zeta function
-func MakeLoopsZeta() []Worldline {
+func MakeLoopsZeta(N, Loops int) []Worldline {
 	loops := make([]Worldline, 1)
 	x := 2.0
 	for i := 0; i < N; i++ {
@@ -132,7 +128,7 @@ func MakeLoopsZeta() []Worldline {
 }
 
 // MakeLoopsGA make worldline loops using genetic algorithm
-func MakeLoopsGA() ([]Worldline, [][]complex128) {
+func MakeLoopsGA(N, Loops int) ([]Worldline, [][]complex128) {
 	target := -8.9518852409623
 
 	factor := -1 / (2 * math.Pow(4*math.Pi, D/2))
@@ -286,7 +282,7 @@ func MakeLoopsGA() ([]Worldline, [][]complex128) {
 }
 
 // MakeLoopsMulti make worldline loops
-func MakeLoopsMulti() []Worldline {
+func MakeLoopsFFT2(N, Loops int) []Worldline {
 	loops := make([]Worldline, Loops)
 	rnd := rand.New(rand.NewSource(int64(1)))
 	y := make([][][]complex128, 0, d)
@@ -389,7 +385,7 @@ func MakeLoopsMulti() []Worldline {
 }
 
 // MakeLoops make worldline loops
-func MakeLoops() []Worldline {
+func MakeLoopsFFT(N, Loops int) []Worldline {
 	loops := make([]Worldline, Loops)
 	for loop := 0; loop < Loops; loop++ {
 		rnd := rand.New(rand.NewSource(int64(loop + 1)))
@@ -450,6 +446,7 @@ func W(a, T float64, loop Worldline, x float64) float64 {
 	intersections := 0.0
 	a /= 2
 	t := math.Sqrt(T)
+	N := len(loop.Line)
 	for i := 0; i < N+1; i++ {
 		v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
 		if x1, x2 := x+t*v1[0], x+t*v2[0]; (x1 < -a && x2 > a) ||
@@ -513,7 +510,8 @@ func main() {
 	flag.Parse()
 
 	if *FlagGA {
-		loops, freq := MakeLoopsGA()
+		loops, freq := MakeLoopsGA(1024, 1)
+		N := len(loops[0].Line)
 
 		points := make(plotter.XYs, 0, N)
 		for n, value := range loops[0].Line {
@@ -593,9 +591,9 @@ func main() {
 	fmt.Println(CPUs)
 
 	fmt.Println("making loops...")
-	//loops := MakeLoops()
-	loops := MakeLoopsMulti()
-	//loops := MakeLoopsZeta()
+	//loops := MakeLoopsFFT(1024, 1024)
+	loops := MakeLoopsFFT2(1024, 1024)
+	//loops := MakeLoopsZeta(1024, 1024)
 
 	for i := range loops {
 		loops[i].ComputeLength()
