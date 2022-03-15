@@ -7,6 +7,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image/color"
 	"math"
 	"math/rand"
 	"runtime"
@@ -40,6 +41,8 @@ var (
 	FlagGA = flag.Bool("ga", false, "ga mode")
 	// FlagGraph generate graphs
 	FlagGraph = flag.Bool("graph", false, "generate graphs")
+	// FlagCompare comares different loop types
+	FlagCompare = flag.Bool("compare", false, "compare loop types")
 )
 
 // Worldline is a worldline
@@ -581,6 +584,69 @@ func main() {
 		p.Add(scatter)
 
 		err = p.Save(8*vg.Inch, 8*vg.Inch, "complex.png")
+		if err != nil {
+			panic(err)
+		}
+
+		return
+	}
+
+	if *FlagCompare {
+		factor := -1 / (2 * math.Pow(4*math.Pi, D/2))
+		m := Lambda / 100
+
+		compare := func(t func(N, Loops int) []Worldline) plotter.XYs {
+			points := make(plotter.XYs, 0, 8)
+			size := 2
+			for i := 0; i < 13; i++ {
+				loops := t(size, size)
+				for i := range loops {
+					loops[i].ComputeLength()
+				}
+
+				a := 1.0
+				f := func(T float64) float64 {
+					return math.Exp(-math.Pow(m, 2)*T) / math.Pow(T, 1+D/2) * V(loops, a, T)
+				}
+				e := factor * quad.Fixed(f, 1/math.Pow(1e15, 2), math.Inf(1), 200, nil, 0)
+				if math.IsNaN(e) {
+					e = 0
+				}
+				fmt.Println(size, e)
+				points = append(points, plotter.XY{X: float64(size), Y: e})
+
+				size *= 2
+			}
+			return points
+		}
+
+		p := plot.New()
+
+		p.Title.Text = "size vs energy"
+		p.X.Label.Text = "size"
+		p.Y.Label.Text = "energy"
+
+		points := compare(MakeLoopsFFT)
+		scatter, err := plotter.NewScatter(points)
+		if err != nil {
+			panic(err)
+		}
+		scatter.GlyphStyle.Radius = vg.Length(1)
+		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+		scatter.Color = color.RGBA{0xFF, 0, 0, 0xFF}
+		p.Add(scatter)
+
+		points = compare(MakeLoopsFFT2)
+		scatter, err = plotter.NewScatter(points)
+		if err != nil {
+			panic(err)
+		}
+		scatter.GlyphStyle.Radius = vg.Length(1)
+		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+		scatter.Color = color.RGBA{0, 0, 0xFF, 0xFF}
+		p.Add(scatter)
+
+		err = p.Save(8*vg.Inch, 8*vg.Inch, "size.png")
 		if err != nil {
 			panic(err)
 		}
