@@ -295,7 +295,6 @@ func MakeLoopsFFT2(N, Loops int) []Worldline {
 			y[i] = append(y[i], make([]complex128, 0, N))
 		}
 	}
-	factor := math.Sqrt(2)
 	for i := 0; i < d; i++ {
 		for j := 0; j < Loops; j++ {
 			for k := 0; k < N; k++ {
@@ -303,7 +302,7 @@ func MakeLoopsFFT2(N, Loops int) []Worldline {
 					y[i][j] = append(y[i][j], 0)
 					continue
 				}
-				y[i][j] = append(y[i][j], complex(rnd.Float64()*factor, rnd.Float64()*factor))
+				y[i][j] = append(y[i][j], complex(rnd.NormFloat64(), rnd.NormFloat64()))
 			}
 		}
 	}
@@ -397,10 +396,9 @@ func MakeLoopsFFT(N, Loops int) []Worldline {
 			y = append(y, make([]complex128, 0, N))
 			y[i] = append(y[i], 0)
 		}
-		factor := math.Sqrt(2)
 		for i := 0; i < d; i++ {
 			for j := 1; j < N; j++ {
-				y[i] = append(y[i], complex(rnd.Float64()*factor, rnd.Float64()*factor))
+				y[i] = append(y[i], complex(rnd.NormFloat64(), rnd.NormFloat64()))
 			}
 		}
 
