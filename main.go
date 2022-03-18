@@ -43,6 +43,8 @@ var (
 	FlagGraph = flag.Bool("graph", false, "generate graphs")
 	// FlagCompare comares different loop types
 	FlagCompare = flag.Bool("compare", false, "compare loop types")
+	// Inner is just the inner integration
+	FlagInner = flag.Bool("inner", false, "inner integration loop")
 )
 
 // Worldline is a worldline
@@ -510,6 +512,8 @@ func V(loops []Worldline, a, T float64) float64 {
 func main() {
 	flag.Parse()
 
+	fmt.Println("CPUs=", CPUs)
+
 	if *FlagGA {
 		loops, freq := MakeLoopsGA(1024, 1)
 		N := len(loops[0].Line)
@@ -652,7 +656,57 @@ func main() {
 		return
 	}
 
-	fmt.Println(CPUs)
+	if *FlagInner {
+		loops := MakeLoopsFFT2(1024, 1024)
+		for i := range loops {
+			loops[i].ComputeLength()
+		}
+
+		w := func(a, T float64, loop Worldline, x float64) float64 {
+			intersections := 0.0
+			a /= 2
+			t := math.Sqrt(T)
+			N := len(loop.Line)
+			for i := 0; i < N+1; i++ {
+				v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
+				if x1, x2 := x+t*v1[0], x+t*v2[0]; (x1 < a && x2 > a) ||
+					(x1 > a && x2 < a) {
+					intersections++
+				}
+			}
+
+			return Lambda * T * intersections
+		}
+
+		points := make(plotter.XYs, 0, 10)
+		for x := 0; x < 100; x++ {
+			x, intersections := float64(x)*.01, 0.0
+			for _, loop := range loops {
+				intersections += w(1, 1, loop, x)
+			}
+			points = append(points, plotter.XY{X: x, Y: intersections})
+		}
+
+		p := plot.New()
+
+		p.Title.Text = "x vs intersections"
+		p.X.Label.Text = "x"
+		p.Y.Label.Text = "intersections"
+
+		scatter, err := plotter.NewScatter(points)
+		if err != nil {
+			panic(err)
+		}
+		scatter.GlyphStyle.Radius = vg.Length(1)
+		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+		p.Add(scatter)
+
+		err = p.Save(8*vg.Inch, 8*vg.Inch, "inner.png")
+		if err != nil {
+			panic(err)
+		}
+		return
+	}
 
 	fmt.Println("making loops...")
 	//loops := MakeLoopsFFT(1024, 1024)
