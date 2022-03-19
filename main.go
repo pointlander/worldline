@@ -506,7 +506,11 @@ func V(loops []Worldline, a, T float64) float64 {
 		}
 		return (sum/denominator - 1)
 	}
-	return quad.Fixed(w, -a, a, 1000, nil, 0)
+	b := a
+	if T > 1 {
+		b *= T
+	}
+	return quad.Fixed(w, -b, b, 1000, nil, 0)
 }
 
 func main() {
@@ -662,7 +666,7 @@ func main() {
 			loops[i].ComputeLength()
 		}
 
-		w := func(a, T float64, loop Worldline, x float64) float64 {
+		line := func(a, T float64, loop Worldline, x float64) float64 {
 			intersections := 0.0
 			a /= 2
 			t := math.Sqrt(T)
@@ -678,13 +682,83 @@ func main() {
 			return Lambda * T * intersections
 		}
 
-		points := make(plotter.XYs, 0, 10)
-		for x := 0; x < 100; x++ {
+		circle := func(a, T float64, loop Worldline, x float64) float64 {
+			intersections := 0.0
+			N := len(loop.Line)
+			for i := 0; i < N+1; i++ {
+				v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
+				r1 := math.Pow(x+v1[0]-1, 2) + math.Pow(v1[1], 2)
+				r2 := math.Pow(x+v2[0]-1, 2) + math.Pow(v2[1], 2)
+				if (r1 < .25 && r2 > .25) ||
+					(r1 > .25 && r2 < .25) {
+					intersections++
+				} else {
+					// https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
+					Ax, Ay := v1[0]+x, v1[1]
+					Bx, By := v2[0]+x, v2[1]
+					Cx := 1.0
+					Cy := 0.0
+
+					// compute the euclidean distance between A and B
+					LAB := math.Sqrt(math.Pow(Bx-Ax, 2) + math.Pow(By-Ay, 2))
+
+					// compute the direction vector D from A to B
+					Dx := (Bx - Ax) / LAB
+					Dy := (By - Ay) / LAB
+
+					// the equation of the line AB is x = Dx*t + Ax, y = Dy*t + Ay with 0 <= t <= LAB.
+
+					// compute the distance between the points A and E, where
+					// E is the point of AB closest the circle center (Cx, Cy)
+					t := Dx*(Cx-Ax) + Dy*(Cy-Ay)
+
+					// compute the coordinates of the point E
+					Ex := t*Dx + Ax
+					Ey := t*Dy + Ay
+
+					// compute the euclidean distance between E and C
+					LEC := math.Sqrt(math.Pow(Ex-Cx, 2) + math.Pow(Ey-Cy, 2))
+
+					if LEC < .5 {
+						// compute distance from t to circle intersection point
+						dt := math.Sqrt(math.Pow(.5, 2) - math.Pow(LEC, 2))
+
+						// compute first intersection point
+						Fx := (t-dt)*Dx + Ax
+						Fy := (t-dt)*Dy + Ay
+
+						// compute second intersection point
+						Gx := (t+dt)*Dx + Ax
+						Gy := (t+dt)*Dy + Ay
+
+						if ((Fx > Ax && Fx < Bx && Fy > Ay && Fy < By) ||
+							(Fx > Bx && Fx < Ax && Fy > By && Fy < Ay)) &&
+							((Gx > Ax && Gx < Bx && Gy > Ay && Gy < By) ||
+								(Gx > Bx && Gx < Ax && Gy > By && Gy < Ay)) {
+							intersections += 2
+						}
+					}
+				}
+			}
+			return intersections
+		}
+
+		pointsLine := make(plotter.XYs, 0, 10)
+		for x := 0; x < 200; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
-				intersections += w(1, 1, loop, x)
+				intersections += line(1, 1, loop, x)
 			}
-			points = append(points, plotter.XY{X: x, Y: intersections})
+			pointsLine = append(pointsLine, plotter.XY{X: x, Y: intersections})
+		}
+
+		pointsCircle := make(plotter.XYs, 0, 10)
+		for x := 0; x < 200; x++ {
+			x, intersections := float64(x)*.01, 0.0
+			for _, loop := range loops {
+				intersections += circle(1, 1, loop, x)
+			}
+			pointsCircle = append(pointsCircle, plotter.XY{X: x, Y: intersections})
 		}
 
 		p := plot.New()
@@ -693,12 +767,22 @@ func main() {
 		p.X.Label.Text = "x"
 		p.Y.Label.Text = "intersections"
 
-		scatter, err := plotter.NewScatter(points)
+		scatter, err := plotter.NewScatter(pointsLine)
 		if err != nil {
 			panic(err)
 		}
 		scatter.GlyphStyle.Radius = vg.Length(1)
 		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+		scatter.Color = color.RGBA{0xFF, 0, 0, 0xFF}
+		p.Add(scatter)
+
+		scatter, err = plotter.NewScatter(pointsCircle)
+		if err != nil {
+			panic(err)
+		}
+		scatter.GlyphStyle.Radius = vg.Length(1)
+		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+		scatter.Color = color.RGBA{0, 0, 0xFF, 0xFF}
 		p.Add(scatter)
 
 		err = p.Save(8*vg.Inch, 8*vg.Inch, "inner.png")
