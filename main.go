@@ -47,6 +47,10 @@ var (
 	FlagInner = flag.Bool("inner", false, "inner integration loop")
 )
 
+func square(a float64) float64 {
+	return a * a
+}
+
 // Worldline is a worldline
 type Worldline struct {
 	Line   [][d]float64
@@ -139,7 +143,7 @@ func MakeLoopsGA(N, Loops int) ([]Worldline, [][]complex128) {
 	factor := -1 / (2 * math.Pow(4*math.Pi, D/2))
 	m := 1.0
 	f := func(T float64) float64 {
-		return math.Exp(-math.Pow(m, 2)*T) / math.Pow(T, 1+D/2)
+		return math.Exp(-square(m)*T) / math.Pow(T, 1+D/2)
 	}
 	factor *= quad.Fixed(f, 0, math.Inf(1), 1000, nil, 0)
 
@@ -612,9 +616,9 @@ func main() {
 
 				a := 1.0
 				f := func(T float64) float64 {
-					return math.Exp(-math.Pow(m, 2)*T) / math.Pow(T, 1+D/2) * V(loops, a, T)
+					return math.Exp(-square(m)*T) / math.Pow(T, 1+D/2) * V(loops, a, T)
 				}
-				e := factor * quad.Fixed(f, 1/math.Pow(1e15, 2), math.Inf(1), 200, nil, 0)
+				e := factor * quad.Fixed(f, 1/square(1e15), math.Inf(1), 200, nil, 0)
 				if math.IsNaN(e) {
 					e = 0
 				}
@@ -684,23 +688,26 @@ func main() {
 
 		circle := func(a, T float64, loop Worldline, x float64) float64 {
 			intersections := 0.0
+			t := math.Sqrt(T)
 			N := len(loop.Line)
+			r := a / 2
+			rSquared := square(r)
 			for i := 0; i < N+1; i++ {
 				v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
-				r1 := math.Pow(x+v1[0]-1, 2) + math.Pow(v1[1], 2)
-				r2 := math.Pow(x+v2[0]-1, 2) + math.Pow(v2[1], 2)
-				if (r1 < .25 && r2 > .25) ||
-					(r1 > .25 && r2 < .25) {
+				r1 := square(x+t*v1[0]-a) + square(v1[1])
+				r2 := square(x+t*v2[0]-a) + square(v2[1])
+				if (r1 < rSquared && r2 > rSquared) ||
+					(r1 > rSquared && r2 < rSquared) {
 					intersections++
 				} else {
 					// https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
-					Ax, Ay := v1[0]+x, v1[1]
-					Bx, By := v2[0]+x, v2[1]
-					Cx := 1.0
+					Ax, Ay := t*v1[0]+x, v1[1]
+					Bx, By := t*v2[0]+x, v2[1]
+					Cx := a
 					Cy := 0.0
 
 					// compute the euclidean distance between A and B
-					LAB := math.Sqrt(math.Pow(Bx-Ax, 2) + math.Pow(By-Ay, 2))
+					LAB := math.Sqrt(square(Bx-Ax) + square(By-Ay))
 
 					// compute the direction vector D from A to B
 					Dx := (Bx - Ax) / LAB
@@ -717,11 +724,11 @@ func main() {
 					Ey := t*Dy + Ay
 
 					// compute the euclidean distance between E and C
-					LEC := math.Sqrt(math.Pow(Ex-Cx, 2) + math.Pow(Ey-Cy, 2))
+					LEC := math.Sqrt(square(Ex-Cx) + square(Ey-Cy))
 
-					if LEC < .5 {
+					if LEC < r {
 						// compute distance from t to circle intersection point
-						dt := math.Sqrt(math.Pow(.5, 2) - math.Pow(LEC, 2))
+						dt := math.Sqrt(rSquared - square(LEC))
 
 						// compute first intersection point
 						Fx := (t-dt)*Dx + Ax
@@ -809,9 +816,9 @@ func main() {
 	for i := 1; i < 100; i++ {
 		a := float64(i)
 		f := func(T float64) float64 {
-			return math.Exp(-math.Pow(m, 2)*T) / math.Pow(T, 1+D/2) * V(loops, a, T)
+			return math.Exp(-square(m)*T) / math.Pow(T, 1+D/2) * V(loops, a, T)
 		}
-		e := factor * quad.Fixed(f, 1/math.Pow(1e15, 2), math.Inf(1), 200, nil, 0)
+		e := factor * quad.Fixed(f, 1/square(1e15), math.Inf(1), 200, nil, 0)
 		fmt.Println(a, e)
 		points = append(points, plotter.XY{X: a, Y: e})
 	}
