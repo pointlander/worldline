@@ -769,7 +769,7 @@ func main() {
 		}
 
 		pointsLineT := make(plotter.XYs, 0, 10)
-		for x := -400; x < 400; x++ {
+		for x := -100; x < 300; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
 				intersections += line(1, 4, loop, x)
@@ -778,7 +778,7 @@ func main() {
 		}
 
 		pointsCircleT := make(plotter.XYs, 0, 10)
-		for x := -400; x < 400; x++ {
+		for x := -100; x < 300; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
 				intersections += circle(1, 4, loop, x)
