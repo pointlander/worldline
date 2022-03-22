@@ -768,6 +768,24 @@ func main() {
 			pointsCircle = append(pointsCircle, plotter.XY{X: x, Y: intersections})
 		}
 
+		pointsLineT := make(plotter.XYs, 0, 10)
+		for x := -400; x < 400; x++ {
+			x, intersections := float64(x)*.01, 0.0
+			for _, loop := range loops {
+				intersections += line(1, 4, loop, x)
+			}
+			pointsLineT = append(pointsLineT, plotter.XY{X: x, Y: intersections})
+		}
+
+		pointsCircleT := make(plotter.XYs, 0, 10)
+		for x := -400; x < 400; x++ {
+			x, intersections := float64(x)*.01, 0.0
+			for _, loop := range loops {
+				intersections += circle(1, 4, loop, x)
+			}
+			pointsCircleT = append(pointsCircleT, plotter.XY{X: x, Y: intersections})
+		}
+
 		p := plot.New()
 
 		p.Title.Text = "x vs intersections"
@@ -790,6 +808,24 @@ func main() {
 		scatter.GlyphStyle.Radius = vg.Length(1)
 		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
 		scatter.Color = color.RGBA{0, 0, 0xFF, 0xFF}
+		p.Add(scatter)
+
+		scatter, err = plotter.NewScatter(pointsLineT)
+		if err != nil {
+			panic(err)
+		}
+		scatter.GlyphStyle.Radius = vg.Length(1)
+		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+		scatter.Color = color.RGBA{0, 0, 0, 0xFF}
+		p.Add(scatter)
+
+		scatter, err = plotter.NewScatter(pointsCircleT)
+		if err != nil {
+			panic(err)
+		}
+		scatter.GlyphStyle.Radius = vg.Length(1)
+		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+		scatter.Color = color.RGBA{0xFF, 0, 0xFF, 0xFF}
 		p.Add(scatter)
 
 		err = p.Save(8*vg.Inch, 8*vg.Inch, "inner.png")
