@@ -25,7 +25,7 @@ import (
 
 const (
 	// d is the number of dimensions
-	d = 2
+	d = 3
 	// D is the number of space time dimensions
 	D = d + 1
 	// Lambda is a plate factor
