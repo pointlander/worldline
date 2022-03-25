@@ -448,6 +448,47 @@ func MakeLoopsFFT(N, Loops int) []Worldline {
 	return loops
 }
 
+// Plane is a plane
+type Plane struct {
+	Ox, Oy, Oz    float64
+	P1x, P1y, P1z float64
+	P2x, P2y, P2z float64
+	P3x, P3y, P3z float64
+}
+
+func (p Plane) I(a, T float64, loop Worldline, x float64) float64 {
+	r1x, r1y, r1z := p.P1x-p.P2x, p.P1y-p.P2y, p.P1z-p.P2z
+	r2x, r2y, r2z := p.P3x-p.P2x, p.P3y-p.P2y, p.P3z-p.P2z
+
+	nx := r1y*r2z - r1z*r2y
+	ny := r1z*r2x - r1x*r2z
+	nz := r1x*r2y - r1y*r2x
+
+	intersections := 0.0
+	t := math.Sqrt(T)
+	N := len(loop.Line)
+	for i := 0; i < N+1; i++ {
+		v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
+		l1x, l1y, l1z := x+t*v1[0]-p.Ox, t*v1[1]-p.Oy, t*v1[2]-p.Oz
+		l2x, l2y, l2z := x+t*v2[0]-p.Ox, t*v2[1]-p.Oy, t*v2[2]-p.Oz
+		rx, ry, rz := l2x-l1x, l2y-l1y, l2z-l1z
+		xi := -rx*(nx*l1x+ny*l1y+nz*l1z)/(nx*rx+ny*ry+nz*rz) + l1x
+		yi := -ry*(nx*l1x+ny*l1y+nz*l1z)/(nx*rx+ny*ry+nz*rz) + l1y
+		zi := -rz*(nx*l1x+ny*l1y+nz*l1z)/(nx*rx+ny*ry+nz*rz) + l1z
+		if (xi > l1x && xi < l2x) || (xi > l2x && xi < l1x) ||
+			(yi > l1y && yi < l2y) || (yi > l2y && yi < l1y) ||
+			(zi > l1z && zi < l2z) || (zi > l2z && zi < l1z) {
+			if xi == 0 &&
+				yi > p.P2y && yi < p.P1y &&
+				zi > p.P3z && zi < p.P2z {
+				intersections++
+			}
+		}
+	}
+
+	return Lambda * T * intersections
+}
+
 // W integrate over wilson loops
 func W(a, T float64, loop Worldline, x float64) float64 {
 	intersections := 0.0
@@ -670,20 +711,28 @@ func main() {
 			loops[i].ComputeLength()
 		}
 
-		line := func(a, T float64, loop Worldline, x float64) float64 {
-			intersections := 0.0
-			a /= 2
-			t := math.Sqrt(T)
-			N := len(loop.Line)
-			for i := 0; i < N+1; i++ {
-				v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
-				if x1, x2 := x+t*v1[0], x+t*v2[0]; (x1 < a && x2 > a) ||
-					(x1 > a && x2 < a) {
-					intersections++
+		/*
+			line := func(a, T float64, loop Worldline, x float64) float64 {
+				intersections := 0.0
+				a /= 2
+				t := math.Sqrt(T)
+				N := len(loop.Line)
+				for i := 0; i < N+1; i++ {
+					v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
+					if x1, x2 := x+t*v1[0], x+t*v2[0]; (x1 < a && x2 > a) ||
+						(x1 > a && x2 < a) {
+						intersections++
+					}
 				}
-			}
 
-			return Lambda * T * intersections
+				return Lambda * T * intersections
+			}*/
+
+		p1 := Plane{
+			0.5, 0, 0,
+			0.0, .5, .5,
+			0.0, -.5, .5,
+			0.0, -.5, -.5,
 		}
 
 		circle := func(a, T float64, loop Worldline, x float64) float64 {
@@ -754,7 +803,7 @@ func main() {
 		for x := 0; x < 200; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
-				intersections += line(1, 1, loop, x)
+				intersections += p1.I(1, 1, loop, x)
 			}
 			pointsLine = append(pointsLine, plotter.XY{X: x, Y: intersections})
 		}
@@ -772,7 +821,7 @@ func main() {
 		for x := -100; x < 300; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
-				intersections += line(1, 4, loop, x)
+				intersections += p1.I(1, 4, loop, x)
 			}
 			pointsLineT = append(pointsLineT, plotter.XY{X: x, Y: intersections})
 		}
