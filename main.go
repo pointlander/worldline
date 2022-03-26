@@ -54,6 +54,26 @@ func crossProduct(ax, ay, az, bx, by, bz float64) (cx, cy, cz float64) {
 	return
 }
 
+func min(a ...float64) float64 {
+	min := math.MaxFloat64
+	for _, value := range a {
+		if value < min {
+			min = value
+		}
+	}
+	return min
+}
+
+func max(a ...float64) float64 {
+	max := -math.MaxFloat64
+	for _, value := range a {
+		if value > max {
+			max = value
+		}
+	}
+	return max
+}
+
 // Worldline is a worldline
 type Worldline struct {
 	Line   [][d]float64
@@ -101,9 +121,26 @@ func (p Plane) I(a, T float64, loop Worldline, x, y, z float64) float64 {
 		if (xi > l1x && xi < l2x) || (xi > l2x && xi < l1x) ||
 			(yi > l1y && yi < l2y) || (yi > l2y && yi < l1y) ||
 			(zi > l1z && zi < l2z) || (zi > l2z && zi < l1z) {
+			p3x, p3y, p3z := -p.P1x, -p.P1y, -p.P1z
+			p4x, p4y, p4z := -p.P2x, -p.P2y, -p.P2z
+			minx, maxx := min(p.P1x, p.P2x, p3x, p4x), max(p.P1x, p.P2x, p3x, p4x)
+			miny, maxy := min(p.P1y, p.P2y, p3y, p4y), max(p.P1y, p.P2y, p3y, p4y)
+			minz, maxz := min(p.P1z, p.P2z, p3z, p4z), max(p.P1z, p.P2z, p3z, p4z)
 			if xi == 0 &&
-				yi > p.P2y && yi < p.P1y &&
-				zi > -p.P2z && zi < p.P2z {
+				yi > miny && yi < maxy &&
+				zi > minz && zi < maxz {
+				intersections++
+			} else if yi == 0 &&
+				xi > minx && xi < maxx &&
+				zi > minz && zi < maxz {
+				intersections++
+			} else if zi == 0 &&
+				xi > minx && xi < maxx &&
+				yi > miny && yi < maxy {
+				intersections++
+			} else if xi > minx && xi < maxx &&
+				yi > miny && yi < maxy &&
+				zi > minz && zi < maxz {
 				intersections++
 			}
 		}
