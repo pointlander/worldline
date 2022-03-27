@@ -118,9 +118,9 @@ func (p Plane) I(a, T float64, loop Worldline, x, y, z float64) float64 {
 		xi := l1x - rx*numerator/denominator
 		yi := l1y - ry*numerator/denominator
 		zi := l1z - rz*numerator/denominator
-		if (xi > l1x && xi < l2x) || (xi > l2x && xi < l1x) ||
-			(yi > l1y && yi < l2y) || (yi > l2y && yi < l1y) ||
-			(zi > l1z && zi < l2z) || (zi > l2z && zi < l1z) {
+		if ((l1x == l2x) || (xi > l1x && xi < l2x) || (xi > l2x && xi < l1x)) &&
+			((l1y == l2y) || (yi > l1y && yi < l2y) || (yi > l2y && yi < l1y)) &&
+			((l1z == l2z) || (zi > l1z && zi < l2z) || (zi > l2z && zi < l1z)) {
 			p3x, p3y, p3z := -p.P1x, -p.P1y, -p.P1z
 			p4x, p4y, p4z := -p.P2x, -p.P2y, -p.P2z
 			minx, maxx := min(p.P1x, p.P2x, p3x, p4x), max(p.P1x, p.P2x, p3x, p4x)
