@@ -115,6 +115,9 @@ func (p Plane) I(a, T float64, loop Worldline, x, y, z float64) float64 {
 		l2x, l2y, l2z := x+t*v2[0]-p.Ox, y+t*v2[1]-p.Oy, z+t*v2[2]-p.Oz
 		rx, ry, rz := l2x-l1x, l2y-l1y, l2z-l1z
 		numerator, denominator := (nx*l1x + ny*l1y + nz*l1z), (nx*rx + ny*ry + nz*rz)
+		if denominator == 0 {
+			continue
+		}
 		xi := l1x - rx*numerator/denominator
 		yi := l1y - ry*numerator/denominator
 		zi := l1z - rz*numerator/denominator
