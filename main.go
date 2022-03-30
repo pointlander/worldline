@@ -106,6 +106,11 @@ type Plane struct {
 // https://tutorial.math.lamar.edu/classes/calciii/eqnsofplanes.aspx
 func (p Plane) I(a, T float64, loop Worldline, x, y, z float64) float64 {
 	nx, ny, nz := crossProduct(p.P1x, p.P1y, p.P1z, p.P2x, p.P2y, p.P2z)
+	p3x, p3y, p3z := -p.P1x, -p.P1y, -p.P1z
+	p4x, p4y, p4z := -p.P2x, -p.P2y, -p.P2z
+	minx, maxx := min(p.P1x, p.P2x, p3x, p4x), max(p.P1x, p.P2x, p3x, p4x)
+	miny, maxy := min(p.P1y, p.P2y, p3y, p4y), max(p.P1y, p.P2y, p3y, p4y)
+	minz, maxz := min(p.P1z, p.P2z, p3z, p4z), max(p.P1z, p.P2z, p3z, p4z)
 	intersections := 0.0
 	t := math.Sqrt(T)
 	N := len(loop.Line)
@@ -121,31 +126,22 @@ func (p Plane) I(a, T float64, loop Worldline, x, y, z float64) float64 {
 		xi := l1x - rx*numerator/denominator
 		yi := l1y - ry*numerator/denominator
 		zi := l1z - rz*numerator/denominator
-		if ((l1x == l2x) || (xi > l1x && xi < l2x) || (xi > l2x && xi < l1x)) &&
+		if (((l1x == l2x) || (xi > l1x && xi < l2x) || (xi > l2x && xi < l1x)) &&
 			((l1y == l2y) || (yi > l1y && yi < l2y) || (yi > l2y && yi < l1y)) &&
-			((l1z == l2z) || (zi > l1z && zi < l2z) || (zi > l2z && zi < l1z)) {
-			p3x, p3y, p3z := -p.P1x, -p.P1y, -p.P1z
-			p4x, p4y, p4z := -p.P2x, -p.P2y, -p.P2z
-			minx, maxx := min(p.P1x, p.P2x, p3x, p4x), max(p.P1x, p.P2x, p3x, p4x)
-			miny, maxy := min(p.P1y, p.P2y, p3y, p4y), max(p.P1y, p.P2y, p3y, p4y)
-			minz, maxz := min(p.P1z, p.P2z, p3z, p4z), max(p.P1z, p.P2z, p3z, p4z)
-			if xi == 0 &&
+			((l1z == l2z) || (zi > l1z && zi < l2z) || (zi > l2z && zi < l1z))) &&
+			((xi == 0 &&
 				yi > miny && yi < maxy &&
-				zi > minz && zi < maxz {
-				intersections++
-			} else if yi == 0 &&
-				xi > minx && xi < maxx &&
-				zi > minz && zi < maxz {
-				intersections++
-			} else if zi == 0 &&
-				xi > minx && xi < maxx &&
-				yi > miny && yi < maxy {
-				intersections++
-			} else if xi > minx && xi < maxx &&
-				yi > miny && yi < maxy &&
-				zi > minz && zi < maxz {
-				intersections++
-			}
+				zi > minz && zi < maxz) ||
+				(yi == 0 &&
+					xi > minx && xi < maxx &&
+					zi > minz && zi < maxz) ||
+				(zi == 0 &&
+					xi > minx && xi < maxx &&
+					yi > miny && yi < maxy) ||
+				(xi > minx && xi < maxx &&
+					yi > miny && yi < maxy &&
+					zi > minz && zi < maxz)) {
+			intersections++
 		}
 	}
 
