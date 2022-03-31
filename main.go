@@ -365,7 +365,7 @@ func main() {
 	}
 
 	if *FlagInner {
-		loops := MakeLoopsFFT2(1024, 1024)
+		loops := MakeLoopsFFT2(256, 256)
 		for i := range loops {
 			loops[i].ComputeLength()
 		}
@@ -527,7 +527,7 @@ func main() {
 
 	fmt.Println("making loops...")
 	//loops := MakeLoopsFFT(1024, 1024)
-	loops := MakeLoopsFFT2(1024, 1024)
+	loops := MakeLoopsFFT2(256, 256)
 	//loops := MakeLoopsZeta(1024, 1024)
 
 	for i := range loops {
