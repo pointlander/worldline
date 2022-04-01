@@ -185,13 +185,13 @@ func (c Cylinder) I(a, T float64, loop Worldline, x, y, z float64) float64 {
 		if (((x0 == l2x) || (xA > x0 && xA < l2x) || (xA > l2x && xA < x0)) &&
 			((y0 == l2y) || (yA > y0 && yA < l2y) || (yA > l2y && yA < y0)) &&
 			((z0 == l2z) || (zA > z0 && zA < l2z) || (zA > l2z && zA < z0))) &&
-			zA < h {
+			(zA > 0 && zA < h) {
 			intersections++
 		}
 		if (((x0 == l2x) || (xB > x0 && xB < l2x) || (xB > l2x && xB < x0)) &&
 			((y0 == l2y) || (yB > y0 && yB < l2y) || (yB > l2y && yB < y0)) &&
 			((x0 == l2z) || (zB > z0 && zB < l2z) || (zB > l2z && zB < x0))) &&
-			zB < h {
+			(zB > 0 && zB < h) {
 			intersections++
 		}
 	}
