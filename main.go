@@ -148,6 +148,57 @@ func (p Plane) I(a, T float64, loop Worldline, x, y, z float64) float64 {
 	return Lambda * T * intersections
 }
 
+// Cylinder is a cylinder
+type Cylinder struct {
+	Ox, Oy, Oz float64
+	H, A, B    float64
+}
+
+// I calculates worldline intersections with a cylinder
+func (c Cylinder) I(a, T float64, loop Worldline, x, y, z float64) float64 {
+	a, b := c.A, c.B
+	h := c.H
+	intersections := 0.0
+	t := math.Sqrt(T)
+	N := len(loop.Line)
+	for i := 0; i < N+1; i++ {
+		v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
+		x0, y0, z0 := x+t*v1[0]-c.Ox, y+t*v1[1]-c.Oy, z+t*v1[2]-c.Oz
+		l2x, l2y, l2z := x+t*v2[0]-c.Ox, y+t*v2[1]-c.Oy, z+t*v2[2]-c.Oz
+		j, k, l := l2x-x0, l2y-y0, l2z-z0
+		root := square(a)*square(k) + square(b)*square(j) - square(j)*square(y0) + 2*j*k*x0*y0 - square(k)*square(x0)
+		if root < 0 {
+			continue
+		}
+		numeratorA := (-square(a)*k*y0 - a*b*math.Sqrt(root) - square(b)*j*x0)
+		numeratorB := (-square(a)*k*y0 + a*b*math.Sqrt(root) - square(b)*j*x0)
+		denominator := (square(a)*square(k) + square(b)*square(j))
+		if denominator == 0 {
+			continue
+		}
+		xA := j*numeratorA/denominator + x0
+		yA := k*numeratorA/denominator + y0
+		zA := l*numeratorA/denominator + z0
+		xB := j*numeratorB/denominator + x0
+		yB := k*numeratorB/denominator + y0
+		zB := l*numeratorB/denominator + z0
+		if (((x0 == l2x) || (xA > x0 && xA < l2x) || (xA > l2x && xA < x0)) &&
+			((y0 == l2y) || (yA > y0 && yA < l2y) || (yA > l2y && yA < y0)) &&
+			((z0 == l2z) || (zA > z0 && zA < l2z) || (zA > l2z && zA < z0))) &&
+			zA < h {
+			intersections++
+		}
+		if (((x0 == l2x) || (xB > x0 && xB < l2x) || (xB > l2x && xB < x0)) &&
+			((y0 == l2y) || (yB > y0 && yB < l2y) || (yB > l2y && yB < y0)) &&
+			((x0 == l2z) || (zB > z0 && zB < l2z) || (zB > l2z && zB < x0))) &&
+			zB < h {
+			intersections++
+		}
+	}
+
+	return Lambda * T * intersections
+}
+
 // W integrate over wilson loops
 func W(a, T float64, loop Worldline, x float64) float64 {
 	intersections := 0.0
@@ -375,69 +426,9 @@ func main() {
 			0.0, .5, .5,
 			0.0, -.5, .5,
 		}
-
-		circle := func(a, T float64, loop Worldline, x float64) float64 {
-			intersections := 0.0
-			t := math.Sqrt(T)
-			N := len(loop.Line)
-			r := a / 2
-			rSquared := square(r)
-			for i := 0; i < N+1; i++ {
-				v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
-				r1 := square(x+t*v1[0]-a) + square(v1[1])
-				r2 := square(x+t*v2[0]-a) + square(v2[1])
-				if (r1 < rSquared && r2 > rSquared) ||
-					(r1 > rSquared && r2 < rSquared) {
-					intersections++
-				} else {
-					// https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
-					Ax, Ay := t*v1[0]+x, v1[1]
-					Bx, By := t*v2[0]+x, v2[1]
-					Cx := a
-					Cy := 0.0
-
-					// compute the euclidean distance between A and B
-					LAB := math.Sqrt(square(Bx-Ax) + square(By-Ay))
-
-					// compute the direction vector D from A to B
-					Dx := (Bx - Ax) / LAB
-					Dy := (By - Ay) / LAB
-
-					// the equation of the line AB is x = Dx*t + Ax, y = Dy*t + Ay with 0 <= t <= LAB.
-
-					// compute the distance between the points A and E, where
-					// E is the point of AB closest the circle center (Cx, Cy)
-					t := Dx*(Cx-Ax) + Dy*(Cy-Ay)
-
-					// compute the coordinates of the point E
-					Ex := t*Dx + Ax
-					Ey := t*Dy + Ay
-
-					// compute the euclidean distance between E and C
-					LEC := math.Sqrt(square(Ex-Cx) + square(Ey-Cy))
-
-					if LEC < r {
-						// compute distance from t to circle intersection point
-						dt := math.Sqrt(rSquared - square(LEC))
-
-						// compute first intersection point
-						Fx := (t-dt)*Dx + Ax
-						Fy := (t-dt)*Dy + Ay
-
-						// compute second intersection point
-						Gx := (t+dt)*Dx + Ax
-						Gy := (t+dt)*Dy + Ay
-
-						if ((Fx > Ax && Fx < Bx && Fy > Ay && Fy < By) ||
-							(Fx > Bx && Fx < Ax && Fy > By && Fy < Ay)) &&
-							((Gx > Ax && Gx < Bx && Gy > Ay && Gy < By) ||
-								(Gx > Bx && Gx < Ax && Gy > By && Gy < Ay)) {
-							intersections += 2
-						}
-					}
-				}
-			}
-			return intersections
+		c1 := Cylinder{
+			.5, 0, -1,
+			2, .5, .5,
 		}
 
 		pointsLine := make(plotter.XYs, 0, 10)
@@ -453,7 +444,7 @@ func main() {
 		for x := 0; x < 200; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
-				intersections += circle(1, 1, loop, x)
+				intersections += c1.I(1, 1, loop, x, 0, 0)
 			}
 			pointsCircle = append(pointsCircle, plotter.XY{X: x, Y: intersections})
 		}
@@ -471,7 +462,7 @@ func main() {
 		for x := -100; x < 300; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
-				intersections += circle(1, 4, loop, x)
+				intersections += c1.I(1, 1, loop, x, 0, 0)
 			}
 			pointsCircleT = append(pointsCircleT, plotter.XY{X: x, Y: intersections})
 		}
