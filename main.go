@@ -462,7 +462,7 @@ func main() {
 		for x := -100; x < 300; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
-				intersections += c1.I(1, 1, loop, x, 0, 0)
+				intersections += c1.I(1, 4, loop, x, 0, 0)
 			}
 			pointsCircleT = append(pointsCircleT, plotter.XY{X: x, Y: intersections})
 		}
