@@ -249,7 +249,7 @@ func V(loops []Worldline, a, T float64) float64 {
 	if T > 1 {
 		b *= T
 	}
-	return quad.Fixed(w, -b, b, 1000, nil, 0)
+	return quad.Fixed(w, -b, b, 100, nil, 0)
 }
 
 func main() {
@@ -514,7 +514,7 @@ func main() {
 	m := Lambda / 100
 
 	points := make(plotter.XYs, 0, 10)
-	for i := 1; i < 100; i++ {
+	for i := 1; i < 50; i++ {
 		a := float64(i)
 		f := func(T float64) float64 {
 			return math.Exp(-square(m)*T) / math.Pow(T, 1+D/2) * V(loops, a, T)
