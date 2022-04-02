@@ -104,7 +104,7 @@ type Plane struct {
 // https://johannesbuchner.github.io/intersection/intersection_line_plane.html
 // https://www.math.usm.edu/lambers/mat169/fall09/lecture25.pdf
 // https://tutorial.math.lamar.edu/classes/calciii/eqnsofplanes.aspx
-func (p Plane) I(a, T float64, loop Worldline, x, y, z float64) float64 {
+func (p Plane) I(T float64, loop Worldline, x, y, z float64) float64 {
 	nx, ny, nz := crossProduct(p.P1x, p.P1y, p.P1z, p.P2x, p.P2y, p.P2z)
 	p3x, p3y, p3z := -p.P1x, -p.P1y, -p.P1z
 	p4x, p4y, p4z := -p.P2x, -p.P2y, -p.P2z
@@ -155,7 +155,7 @@ type Cylinder struct {
 }
 
 // I calculates worldline intersections with a cylinder
-func (c Cylinder) I(a, T float64, loop Worldline, x, y, z float64) float64 {
+func (c Cylinder) I(T float64, loop Worldline, x, y, z float64) float64 {
 	a, b := c.A, c.B
 	h := c.H
 	intersections := 0.0
@@ -203,20 +203,19 @@ func (c Cylinder) I(a, T float64, loop Worldline, x, y, z float64) float64 {
 func W(a, T float64, loop Worldline, x float64) float64 {
 	intersections := 0.0
 	a /= 2
-	t := math.Sqrt(T)
-	N := len(loop.Line)
-	for i := 0; i < N+1; i++ {
-		v1, v2 := loop.Line[(i+N-1)%N], loop.Line[i%N]
-		if x1, x2 := x+t*v1[0], x+t*v2[0]; (x1 < -a && x2 > a) ||
-			(x1 > a && x2 < -a) {
-			intersections += 2
-		} else if (x1 < a && x2 > a) ||
-			(x1 > a && x2 < a) ||
-			(x1 < -a && x2 > -a) ||
-			(x1 > -a && x2 < -a) {
-			intersections++
-		}
+	p1 := Plane{
+		a, 0, 0,
+		0.0, 1, 1,
+		0.0, -1, 1,
 	}
+	p2 := Plane{
+		-a, 0, 0,
+		0.0, 1, 1,
+		0.0, -1, 1,
+	}
+
+	intersections += p1.I(T, loop, x, 0, 0)
+	intersections += p2.I(T, loop, x, 0, 0)
 
 	return Lambda * T * intersections
 }
@@ -230,34 +229,19 @@ type Result struct {
 // V compute energy for plate separation a
 func V(loops []Worldline, a, T float64) float64 {
 	w := func(x float64) float64 {
-		done := make(chan Result, 8)
-		process := func(a, T float64, i int) {
+		process := func(a, T float64, i int) Result {
 			intersections := W(a, T, loops[i], x)
-			done <- Result{
+			return Result{
 				Intersections: intersections,
 				Length:        loops[i].Length,
 			}
 		}
-		length, sum, denominator, flight, i := len(loops), 0.0, 0.0, 0, 0
-		for i < length && flight < CPUs {
-			go process(a, T, i)
-			flight++
-			i++
-		}
+		length, sum, denominator, i := len(loops), 0.0, 0.0, 0
 		for i < length {
-			result := <-done
-			flight--
+			result := process(a, T, i)
 			sum += math.Exp(-result.Intersections) * result.Length
 			denominator += result.Length
-
-			go process(a, T, i)
-			flight++
 			i++
-		}
-		for i := 0; i < flight; i++ {
-			result := <-done
-			sum += math.Exp(-result.Intersections) * result.Length
-			denominator += result.Length
 		}
 		return (sum/denominator - 1)
 	}
@@ -369,7 +353,7 @@ func main() {
 				f := func(T float64) float64 {
 					return math.Exp(-square(m)*T) / math.Pow(T, 1+D/2) * V(loops, a, T)
 				}
-				e := factor * quad.Fixed(f, 1/square(1e15), math.Inf(1), 200, nil, 0)
+				e := factor * quad.Fixed(f, 1/square(1e15), math.Inf(1), 200, nil, CPUs)
 				if math.IsNaN(e) {
 					e = 0
 				}
@@ -435,7 +419,7 @@ func main() {
 		for x := 0; x < 200; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
-				intersections += p1.I(1, 1, loop, x, 0, 0)
+				intersections += p1.I(1, loop, x, 0, 0)
 			}
 			pointsLine = append(pointsLine, plotter.XY{X: x, Y: intersections})
 		}
@@ -444,7 +428,7 @@ func main() {
 		for x := 0; x < 200; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
-				intersections += c1.I(1, 1, loop, x, 0, 0)
+				intersections += c1.I(1, loop, x, 0, 0)
 			}
 			pointsCircle = append(pointsCircle, plotter.XY{X: x, Y: intersections})
 		}
@@ -453,7 +437,7 @@ func main() {
 		for x := -100; x < 300; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
-				intersections += p1.I(1, 4, loop, x, 0, 0)
+				intersections += p1.I(4, loop, x, 0, 0)
 			}
 			pointsLineT = append(pointsLineT, plotter.XY{X: x, Y: intersections})
 		}
@@ -462,7 +446,7 @@ func main() {
 		for x := -100; x < 300; x++ {
 			x, intersections := float64(x)*.01, 0.0
 			for _, loop := range loops {
-				intersections += c1.I(1, 4, loop, x, 0, 0)
+				intersections += c1.I(4, loop, x, 0, 0)
 			}
 			pointsCircleT = append(pointsCircleT, plotter.XY{X: x, Y: intersections})
 		}
@@ -517,7 +501,7 @@ func main() {
 	}
 
 	fmt.Println("making loops...")
-	//loops := MakeLoopsFFT(1024, 1024)
+	//loops := MakeLoopsFFT(256, 256)
 	loops := MakeLoopsFFT2(256, 256)
 	//loops := MakeLoopsZeta(1024, 1024)
 
@@ -535,7 +519,7 @@ func main() {
 		f := func(T float64) float64 {
 			return math.Exp(-square(m)*T) / math.Pow(T, 1+D/2) * V(loops, a, T)
 		}
-		e := factor * quad.Fixed(f, 1/square(1e15), math.Inf(1), 200, nil, 0)
+		e := factor * quad.Fixed(f, 1/square(1e15), math.Inf(1), 200, nil, CPUs)
 		fmt.Println(a, e)
 		points = append(points, plotter.XY{X: a, Y: e})
 	}
